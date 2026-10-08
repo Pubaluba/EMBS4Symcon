@@ -11,7 +11,7 @@ declare(strict_types=1);
 			// 12 Variablen registrieren (Index 0 bis 11)
         for ($i = 0; $i < 12; $i++) {
             // RegisterVariableVariant erlaubt flexibel Zahlen, Booleans oder Strings
-            $this->RegisterVariableVariant("Value_" . $i, "Variable " . $i, "", $i);
+            $this->RegisterVariableInteger("Value_" . $i, "Variable " . $i, "", $i);
         }
 		}
 
