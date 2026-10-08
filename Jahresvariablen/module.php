@@ -21,7 +21,7 @@ declare(strict_types=1);
 			$this->RegisterVariableInteger("Value_10", "Oktober" , "", 10);
 			$this->RegisterVariableInteger("Value_11", "November" , "", 11);
 			$this->RegisterVariableInteger("Value_12", "Dezember" , "", 12);
-			
+		}			
 
 		public function Destroy()
 		{
