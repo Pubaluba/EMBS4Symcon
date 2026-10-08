@@ -36,8 +36,8 @@ declare(strict_types=1);
 		}
 		public function Get(int $Index)
    	 	{
-    	    if ($Index < 0 || $Index > 11) {
-            trigger_error("Index liegt außerhalb des gültigen Bereichs (0 - 11)", E_USER_WARNING);
+    	    if ($Index < 1 || $Index > 12) {
+            trigger_error("Index liegt außerhalb des gültigen Bereichs (1 - 12)", E_USER_WARNING);
             return null;
         	}
 
@@ -46,8 +46,8 @@ declare(strict_types=1);
 		
 	public function Set(int $Index, $Value)
     {
-        if ($Index < 0 || $Index > 11) {
-            trigger_error("Index liegt außerhalb des gültigen Bereichs (0 - 11)", E_USER_WARNING);
+        if ($Index < 1 || $Index > 12) {
+            trigger_error("Index liegt außerhalb des gültigen Bereichs (1 - 12)", E_USER_WARNING);
             return false;
         }
 
