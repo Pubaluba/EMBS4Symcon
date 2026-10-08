@@ -21,6 +21,21 @@ declare(strict_types=1);
 			$this->RegisterVariableInteger("Value_10", "Oktober" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 10);
 			$this->RegisterVariableInteger("Value_11", "November" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 11);
 			$this->RegisterVariableInteger("Value_12", "Dezember" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 12);
+			$this->EnableAction("Value_1")
+			$this->EnableAction("Value_2")
+			$this->EnableAction("Value_3")
+			$this->EnableAction("Value_4")
+			$this->EnableAction("Value_5")
+			$this->EnableAction("Value_6")
+			$this->EnableAction("Value_7")
+			$this->EnableAction("Value_8")
+			$this->EnableAction("Value_9")
+			$this->EnableAction("Value_10")
+			$this->EnableAction("Value_11")
+			$this->EnableAction("Value_12")
+			
+
+			
 		}			
 
 		public function Destroy()
