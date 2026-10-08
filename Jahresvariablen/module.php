@@ -7,6 +7,12 @@ declare(strict_types=1);
 		{
 			//Never delete this line!
 			parent::Create();
+
+			// 12 Variablen registrieren (Index 0 bis 11)
+        for ($i = 0; $i < 12; $i++) {
+            // RegisterVariableVariant erlaubt flexibel Zahlen, Booleans oder Strings
+            $this->RegisterVariableVariant("Value_" . $i, "Variable " . $i, "", $i);
+        }
 		}
 
 		public function Destroy()
@@ -20,4 +26,28 @@ declare(strict_types=1);
 			//Never delete this line!
 			parent::ApplyChanges();
 		}
+
+		public function GetValue(int $Index)
+	    {
+	        if ($Index < 0 || $Index > 11) {
+	            trigger_error("Index liegt außerhalb des gültigen Bereichs (0 - 11)", E_USER_WARNING);
+	            return null;
+	        }
+	
+	        return $this->GetValue("Value_" . $Index);
+	    }
+		
+		public function SetValue(int $Index, $Value)
+	    {
+        if ($Index < 0 || $Index > 11) {
+            trigger_error("Index liegt außerhalb des gültigen Bereichs (0 - 11)", E_USER_WARNING);
+            return false;
+        				}
+
+        $this->SetValue("Value_" . $Index, $Value);
+        return true;
+  		  }
+	
+	
+	
 	}
