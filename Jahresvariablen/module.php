@@ -35,7 +35,16 @@ declare(strict_types=1);
         return $this->GetValue("Value_" . $Index);
     }
 		
-	
+	public function Set(int $Index, $Value)
+    {
+        if ($Index < 0 || $Index > 11) {
+            trigger_error("Index liegt außerhalb des gültigen Bereichs (0 - 11)", E_USER_WARNING);
+            return false;
+        }
+
+        $this->SetValue("Value_" . $Index, $Value);
+        return true;
+    }
 	
 	
 	}
