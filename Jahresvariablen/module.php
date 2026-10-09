@@ -33,7 +33,18 @@ declare(strict_types=1);
 			$this->EnableAction("Value_10");
 			$this->EnableAction("Value_11");
 			$this->EnableAction("Value_12");
-			
+			$this->setvalue("Value_1",85);
+			$this->setvalue("Value_2",75);
+			$this->setvalue("Value_3",60);
+			$this->setvalue("Value_4",15);
+			$this->setvalue("Value_5",10);
+			$this->setvalue("Value_6",10);
+			$this->setvalue("Value_7",10);
+			$this->setvalue("Value_8",10);
+			$this->setvalue("Value_9",15);
+			$this->setvalue("Value_10",60);
+			$this->setvalue("Value_11",75);
+			$this->setvalue("Value_12",85);
 
 			
 		}			
