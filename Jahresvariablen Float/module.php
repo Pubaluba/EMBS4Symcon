@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-	class Jahresvariablen extends IPSModule
+	class Jahresvariablen Float extends IPSModule
 	{
 		public function Create()
 		{
