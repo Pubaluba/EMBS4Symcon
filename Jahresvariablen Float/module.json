@@ -1,0 +1,12 @@
+{
+    "id": "{EBB33F8E-94FF-71CE-2CB8-0E2231182002}",
+    "name": "Jahresvariablen Float",
+    "type": 3,
+    "vendor": "",
+    "aliases": [],
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "EMBS_VAR_Float",
+    "url": ""
+}
