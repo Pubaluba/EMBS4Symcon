@@ -30,9 +30,9 @@ declare(strict_types=1);
     	{
 
       // Vorgabenspeicher finden
-          $settings=IPS_FindObjectIDByName("Batterie-Einstellungen",0);
-          $teuer=IPS_GetInstanceIDByName("Batterie-Entladung",$settings);
-          $günstig=IPS_GetInstanceIDByName("Batterie-Ladung",$settings);
+      //    $settings=IPS_FindObjectIDByName("Batterie-Einstellungen",0);
+      //    $teuer=IPS_GetInstanceIDByName("Batterie-Entladung",$settings);
+      //    $günstig=IPS_GetInstanceIDByName("Batterie-Ladung",$settings);
 
 
       // Monat und Vorgaben bestimmen
