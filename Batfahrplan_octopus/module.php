@@ -9,10 +9,10 @@ declare(strict_types=1);
 			parent::Create();
 
 			// 12 Variablen registrieren (Index 1 bis 12)
-      $this->RegisterVariablestring("Plan_heute", "Plan heute" ,"", 1);
+      		$this->RegisterVariablestring("Plan_heute", "Plan heute" ,"", 1);
 			$this->RegisterVariablestring("Plan_morgen", "Plan morgen" , "", 2);
-			$this->setvalue("Plan_heute"," hallo" );
-			$this->setvalue("Plan_morgen",75);
+			$this->setvalue("Plan_heute","" );
+			$this->setvalue("Plan_morgen","");
 
 
 			
@@ -31,8 +31,29 @@ declare(strict_types=1);
 		}
 		public function update(int $Index)
    	 	{
-    	    return null;
-        	
+    	    
+			$time= strtotime("today");
+			$monat = idate("m",$time);
+			$Vorgabeteuer=get
+			$Vorgabegünstig=
+			$Soll_guenstig=
+			$Soll_teuer=
+			
+			for ($i=0;$i<24;$i++)
+     { 
+    switch($i)
+    {
+        case $Preisstunde[0]:
+        case $Preisstunde[1]:
+       case $Preisstunde[2]:
+       case $Preisstunde[3]:
+       case $Preisstunde[4]:
+       $plan[$i]=$Soll_guenstig;    break;
+       
+        default:
+          $plan[$i]=$Soll_teuer;            break;
+			
+		     	
 
          }
 		
