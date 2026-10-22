@@ -79,5 +79,11 @@ declare(strict_types=1);
         	return true;
    		 }
 	
-	
+		public function Setbyident(int $Ident, $Value)
+    	{
+        	
+        	$this->SetValue($Ident, $Value);
+        	return true;
+   		 }
+		
 }
