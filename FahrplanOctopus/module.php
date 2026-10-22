@@ -36,10 +36,10 @@ declare(strict_types=1);
 
 
       // Monat und Vorgaben bestimmen
-          $time= (strtotime("tomorrow"));
-          $Monat=idate("m",$time);
+      //    $time= (strtotime("tomorrow"));
+      //    $Monat=idate("m",$time);
           $teuer=5; //  Jahresvariablen_Get($teuer,$Monat);
-          $guenstig=$Monat;  // Jahresvariablen_Get($günstig,$Monat);
+          $guenstig=1;  // Jahresvariablen_Get($günstig,$Monat);
 
       // Fahrplan aus Vorgaben erstellen
           for ($i = 0; $i <= 5; $i++) 
