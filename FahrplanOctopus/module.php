@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-	class FahrpalnOctopus extends IPSModule
+	class Fahrplan_octopus extends IPSModule
 	{
 		public function Create()
 		{
