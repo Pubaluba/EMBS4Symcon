@@ -50,8 +50,8 @@ declare(strict_types=1);
               { $BatPlan[$i]=$teuer;
                 $WBPlan[$i]=0;}
         
-         setvaluestring("BatPlan_2",json_encode($BatPlan));
-         setvaluestring("WBPlan_2",json_encode($WBPlan));
+         $this->setvaluestring("BatPlan_2",json_encode($BatPlan));
+         $this->setvaluestring("WBPlan_2",json_encode($WBPlan));
 
 
    		 }
