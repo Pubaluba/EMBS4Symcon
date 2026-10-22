@@ -60,7 +60,7 @@ declare(strict_types=1);
 			//Never delete this line!
 			parent::ApplyChanges();
 		}
-		public function Get(int $Index)
+		public function GET(int $Index)
    	 	{
     	    if ($Index < 1 || $Index > 12) {
             trigger_error("Index liegt außerhalb des gültigen Bereichs (1 - 12)", E_USER_WARNING);
@@ -70,7 +70,7 @@ declare(strict_types=1);
         return $this->GetValue("Value_" . $Index);
     }
 		
-	public function Set(int $Index, $Value)
+	public function SET(int $Index, $Value)
     {
         if ($Index < 1 || $Index > 12) {
             trigger_error("Index liegt außerhalb des gültigen Bereichs (1 - 12)", E_USER_WARNING);
