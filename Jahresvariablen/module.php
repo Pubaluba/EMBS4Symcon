@@ -7,7 +7,6 @@ declare(strict_types=1);
 		{
 			//Never delete this line!
 			parent::Create();
-
 			// 12 Variablen registrieren (Index 1 bis 12)
             $this->RegisterVariableInteger("Value_1", "Januar" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 1);
 			$this->RegisterVariableInteger("Value_2", "Februar" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 2);
@@ -45,8 +44,6 @@ declare(strict_types=1);
 			$this->setvalue("Value_10",60);
 			$this->setvalue("Value_11",75);
 			$this->setvalue("Value_12",85);
-
-			
 		}			
 
 		public function Destroy()
