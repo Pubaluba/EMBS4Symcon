@@ -51,8 +51,8 @@ declare(strict_types=1);
               { $BatPlan[$i]=$teuer;
                 $WBPlan[$i]=0;}
         
-          setvalue(BatPlan_2,json_encode($BatPlan));
-         setvalue(WBPlan_2,json_encode($WBPlan));
+          setvaluestring("BatPlan_2",json_encode($BatPlan));
+          setvaluestring("WBPlan_2",json_encode($WBPlan));
 
 
    		 }
