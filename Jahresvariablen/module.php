@@ -59,20 +59,20 @@ declare(strict_types=1);
 		}
 		public function Get(int $Index)
    	 	{
-    //	    if ($Index < 1 || $Index > 12) {
-      //      trigger_error("Index liegt außerhalb des gültigen Bereichs (1 - 12)", E_USER_WARNING);
-        //    return null;
-        //	}
+    	    if ($Index < 1 || $Index > 12) {
+            trigger_error("Index liegt außerhalb des gültigen Bereichs (1 - 12)", E_USER_WARNING);
+            return null;
+        	}
 
         return $this->GetValue("Value_" . $Index);
     }
 		
 	public function Set(int $Index, $Value)
     {
-   //     if ($Index < 1 || $Index > 12) {
-   //         trigger_error("Index liegt außerhalb des gültigen Bereichs (1 - 12)", E_USER_WARNING);
-   //         return false;
-   //     }
+        if ($Index < 1 || $Index > 12) {
+            trigger_error("Index liegt außerhalb des gültigen Bereichs (1 - 12)", E_USER_WARNING);
+            return false;
+        }
 
         $this->SetValue("Value_" . $Index, $Value);
         return true;
