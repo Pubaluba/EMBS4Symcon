@@ -36,22 +36,22 @@ declare(strict_types=1);
 
 
       // Monat und Vorgaben bestimmen
-//          $time= (strtotime("tomorrow"));
-//          $Monat=idate("m",$time);
-//          $teuer=Jahresvariablen_Get($teuer,$Monat);
-//          $guenstig=Jahresvariablen_Get($günstig,$Monat);
+          $time= (strtotime("tomorrow"));
+          $Monat=idate("m",$time);
+          $teuer=5; //  Jahresvariablen_Get($teuer,$Monat);
+          $guenstig=$Monat;  // Jahresvariablen_Get($günstig,$Monat);
 
       // Fahrplan aus Vorgaben erstellen
-//          for ($i = 0; $i <= 5; $i++) 
-//          { $BatPlan[$i]=$guenstig;
-//            $WBPlan[$i]=1;}
+          for ($i = 0; $i <= 5; $i++) 
+          { $BatPlan[$i]=$guenstig;
+            $WBPlan[$i]=1;}
           
-//          for ($i = 5; $i <= 12; $i++) 
-//              { $BatPlan[$i]=$teuer;
-//                $WBPlan[$i]=0;}
+          for ($i = 5; $i <= 12; $i++) 
+              { $BatPlan[$i]=$teuer;
+                $WBPlan[$i]=0;}
         
- //         setvaluestring("BatPlan_2",json_encode($BatPlan));
- //         setvaluestring("WBPlan_2",json_encode($WBPlan));
+         setvaluestring("BatPlan_2",json_encode($BatPlan));
+         setvaluestring("WBPlan_2",json_encode($WBPlan));
 
 
    		 }
