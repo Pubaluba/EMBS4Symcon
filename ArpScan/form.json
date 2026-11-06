@@ -1,11 +1,6 @@
 {
     "elements": [
         {
-            "type": "ValidationTextBox",
-            "name": "ArpScanPath",
-            "caption": "Pfad zu arp-scan"
-        },
-        {
             "type": "CheckBox",
             "name": "UseSudo",
             "caption": "arp-scan mit sudo ausführen (sudo -n, NOPASSWD erforderlich)"
@@ -39,9 +34,55 @@
                     "maximum": 32
                 }
             ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Erweitert (Installation von arp-scan)",
+            "items": [
+                {
+                    "type": "ValidationTextBox",
+                    "name": "ArpScanPath",
+                    "caption": "Eigener Pfad zu arp-scan (leer = System oder automatisch installiert)"
+                },
+                {
+                    "type": "ValidationTextBox",
+                    "name": "AlpineMirror",
+                    "caption": "Download-Mirror (Alpine Linux)"
+                },
+                {
+                    "type": "ValidationTextBox",
+                    "name": "AlpineBranch",
+                    "caption": "Alpine-Version (z.B. latest-stable, v3.20)"
+                },
+                {
+                    "type": "ValidationTextBox",
+                    "name": "Architecture",
+                    "caption": "Architektur (leer = automatisch: aarch64, armv7, armhf, x86_64, x86)"
+                }
+            ]
         }
     ],
     "actions": [
+        {
+            "type": "Label",
+            "name": "ArpScanState",
+            "caption": ""
+        },
+        {
+            "type": "RowLayout",
+            "items": [
+                {
+                    "type": "Button",
+                    "caption": "arp-scan installieren / aktualisieren",
+                    "onClick": "echo ARPS_InstallArpScan($id);"
+                },
+                {
+                    "type": "Button",
+                    "caption": "Hersteller-Datenbank aktualisieren",
+                    "onClick": "echo ARPS_UpdateVendorDatabase($id);"
+                }
+            ]
+        },
         {
             "type": "RowLayout",
             "items": [
@@ -53,7 +94,7 @@
                 {
                     "type": "Button",
                     "caption": "Netzwerk scannen",
-                    "onClick": "ARPS_ScanNetwork($id, $Network, $Bitcount);"
+                    "onClick": "ARPS_ScanNetwork($id, $Network ?? '', $Bitcount ?? 0);"
                 }
             ]
         },
