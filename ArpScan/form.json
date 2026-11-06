@@ -37,6 +37,57 @@
         },
         {
             "type": "ExpansionPanel",
+            "caption": "Zyklischer Scan & Anwesenheit",
+            "expanded": true,
+            "items": [
+                {
+                    "type": "NumberSpinner",
+                    "name": "ScanInterval",
+                    "caption": "Automatischer Scan alle (0 = aus)",
+                    "suffix": "Minuten",
+                    "minimum": 0,
+                    "maximum": 1440
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "MissesBeforeAbsent",
+                    "caption": "Abwesend nach X Scans ohne Treffer",
+                    "minimum": 1,
+                    "maximum": 50
+                },
+                {
+                    "type": "List",
+                    "name": "TrackedDevices",
+                    "caption": "Überwachte Geräte (Anwesenheit)",
+                    "rowCount": 6,
+                    "add": true,
+                    "delete": true,
+                    "columns": [
+                        {
+                            "caption": "Name",
+                            "name": "Name",
+                            "width": "250px",
+                            "add": "",
+                            "edit": {
+                                "type": "ValidationTextBox"
+                            }
+                        },
+                        {
+                            "caption": "MAC-Adresse (aa:bb:cc:dd:ee:ff)",
+                            "name": "MAC",
+                            "width": "auto",
+                            "add": "",
+                            "edit": {
+                                "type": "ValidationTextBox"
+                            }
+                        }
+                    ],
+                    "values": []
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
             "caption": "Erweitert (Installation von arp-scan)",
             "items": [
                 {
@@ -95,6 +146,11 @@
                     "type": "Button",
                     "caption": "Netzwerk scannen",
                     "onClick": "ARPS_ScanNetwork($id, $Network ?? '', $Bitcount ?? 0);"
+                },
+                {
+                    "type": "Button",
+                    "caption": "Gefundene Geräte in Anwesenheitsliste übernehmen",
+                    "onClick": "echo ARPS_FillTrackedFromScan($id);"
                 }
             ]
         },
@@ -106,9 +162,21 @@
             "add": false,
             "delete": false,
             "columns": [
-                { "caption": "IP-Adresse", "name": "IP", "width": "150px" },
-                { "caption": "MAC-Adresse", "name": "MAC", "width": "170px" },
-                { "caption": "Hersteller", "name": "Vendor", "width": "auto" }
+                {
+                    "caption": "IP-Adresse",
+                    "name": "IP",
+                    "width": "150px"
+                },
+                {
+                    "caption": "MAC-Adresse",
+                    "name": "MAC",
+                    "width": "170px"
+                },
+                {
+                    "caption": "Hersteller",
+                    "name": "Vendor",
+                    "width": "auto"
+                }
             ],
             "values": []
         }

@@ -23,7 +23,14 @@ class ArpScan extends IPSModule
         $this->RegisterPropertyString('AlpineBranch', 'latest-stable');
         $this->RegisterPropertyString('Architecture', '');
 
+        $this->RegisterPropertyInteger('ScanInterval', 0);
+        $this->RegisterPropertyInteger('MissesBeforeAbsent', 3);
+        $this->RegisterPropertyString('TrackedDevices', '[]');
+
         $this->RegisterAttributeString('Devices', '[]');
+        $this->RegisterAttributeString('Misses', '{}');
+
+        $this->RegisterTimer('ScanTimer', 0, 'ARPS_TimerScan($_IPS[\'TARGET\']);');
     }
 
     public function ApplyChanges()
@@ -36,6 +43,37 @@ class ArpScan extends IPSModule
         $this->RegisterVariableInteger('DeviceCount', 'Gefundene Geräte', '', 30);
         $this->RegisterVariableInteger('LastScan', 'Letzter Scan', '~UnixTimestamp', 40);
         $this->RegisterVariableString('DeviceList', 'Geräteliste', '~HTMLBox', 50);
+        $this->RegisterVariableBoolean('AnyPresent', 'Jemand anwesend', '~Presence', 5);
+
+        // Anwesenheits-Variablen je überwachtem Gerät
+        $keep = [];
+        $pos = 100;
+        $macs = [];
+        foreach ($this->trackedDevices() as $t) {
+            $hex = strtoupper(str_replace(':', '', $t['MAC']));
+            $macs[] = $t['MAC'];
+            $pId = 'P_' . $hex;
+            $sId = 'S_' . $hex;
+            $this->RegisterVariableBoolean($pId, $t['Name'], '~Presence', $pos++);
+            $this->RegisterVariableInteger($sId, $t['Name'] . ' – zuletzt gesehen', '~UnixTimestamp', $pos++);
+            IPS_SetName($this->GetIDForIdent($pId), $t['Name']);
+            IPS_SetName($this->GetIDForIdent($sId), $t['Name'] . ' – zuletzt gesehen');
+            $keep[] = $pId;
+            $keep[] = $sId;
+        }
+        foreach (IPS_GetChildrenIDs($this->InstanceID) as $cid) {
+            $ident = IPS_GetObject($cid)['ObjectIdent'];
+            if ((strncmp($ident, 'P_', 2) === 0 || strncmp($ident, 'S_', 2) === 0) && !in_array($ident, $keep, true)) {
+                $this->UnregisterVariable($ident);
+            }
+        }
+        // Zähler entfernter Geräte aufräumen
+        $misses = json_decode($this->ReadAttributeString('Misses'), true) ?: [];
+        $this->WriteAttributeString('Misses', json_encode(array_intersect_key($misses, array_flip($macs))));
+
+        // Timer für zyklischen Scan
+        $minutes = max(0, $this->ReadPropertyInteger('ScanInterval'));
+        $this->SetTimerInterval('ScanTimer', $minutes * 60 * 1000);
     }
 
     public function GetConfigurationForm()
@@ -57,6 +95,73 @@ class ArpScan extends IPSModule
     // ------------------------------------------------------------------
     // Öffentliche Funktionen
     // ------------------------------------------------------------------
+
+    /**
+     * ARPS_TimerScan($id) – wird vom Timer aufgerufen (zyklischer Scan inkl. Anwesenheit).
+     */
+    public function TimerScan(): void
+    {
+        $until = (int) $this->GetBuffer('ScanLock');
+        if ($until > time()) {
+            return; // vorheriger Scan läuft noch
+        }
+        $this->SetBuffer('ScanLock', (string) (time() + 600));
+        try {
+            $this->ScanNetwork('', 0);
+        } catch (Throwable $e) {
+            $this->LogMessage('Zyklischer Scan fehlgeschlagen: ' . $e->getMessage(), KL_WARNING);
+        } finally {
+            $this->SetBuffer('ScanLock', '0');
+        }
+    }
+
+    /**
+     * ARPS_AddTrackedDevice($id, 'aa:bb:cc:dd:ee:ff', 'Handy Anna')
+     * Fügt ein Gerät zur Anwesenheitserkennung hinzu (speichert die Konfiguration).
+     */
+    public function AddTrackedDevice(string $MAC, string $Name = ''): string
+    {
+        $mac = $this->normalizeMac($MAC);
+        if ($mac === '') {
+            return 'Ungültige MAC-Adresse: ' . $MAC;
+        }
+        $list = json_decode($this->ReadPropertyString('TrackedDevices'), true) ?: [];
+        foreach ($list as $e) {
+            if ($this->normalizeMac($e['MAC'] ?? '') === $mac) {
+                return 'Gerät ist bereits in der Liste.';
+            }
+        }
+        $list[] = ['Name' => $Name !== '' ? $Name : $mac, 'MAC' => $mac];
+        IPS_SetProperty($this->InstanceID, 'TrackedDevices', json_encode($list));
+        IPS_ApplyChanges($this->InstanceID);
+        return 'Gerät hinzugefügt: ' . $mac;
+    }
+
+    /**
+     * Formular-Button: trägt alle Geräte des letzten Scans in die Anwesenheitsliste ein
+     * (noch nicht gespeichert – unerwünschte Zeilen löschen, Namen anpassen, dann "Änderungen übernehmen").
+     */
+    public function FillTrackedFromScan(): string
+    {
+        $devices = json_decode($this->ReadAttributeString('Devices'), true) ?: [];
+        if (count($devices) === 0) {
+            return 'Bitte zuerst einen Netzwerk-Scan durchführen.';
+        }
+        $list = [];
+        foreach ($this->trackedDevices() as $t) {
+            $list[$t['MAC']] = ['Name' => $t['Name'], 'MAC' => $t['MAC']];
+        }
+        $added = 0;
+        foreach ($devices as $d) {
+            if (!isset($list[$d['MAC']])) {
+                $label = ($d['Vendor'] !== '' && $d['Vendor'] !== 'Unbekannt' ? $d['Vendor'] : 'Gerät') . ' (' . $d['IP'] . ')';
+                $list[$d['MAC']] = ['Name' => $label, 'MAC' => $d['MAC']];
+                $added++;
+            }
+        }
+        $this->UpdateFormField('TrackedDevices', 'values', json_encode(array_values($list)));
+        return $added . ' Gerät(e) in die Liste übernommen. Bitte Namen anpassen, unerwünschte Zeilen löschen und "Änderungen übernehmen" klicken.';
+    }
 
     /**
      * ARPS_GetIP($id)
@@ -326,7 +431,101 @@ class ArpScan extends IPSModule
         $this->SetValue('DeviceList', $this->buildHtml($devices));
         $this->UpdateFormField('Devices', 'values', json_encode($devices));
 
+        // Anwesenheit nur auswerten, wenn das Standard-Netzwerk gescannt wurde
+        if ($netAddr . '/' . $Bitcount === $this->defaultTarget()) {
+            $this->updatePresence($devices);
+        }
+
         return $devices;
+    }
+
+    // ------------------------------------------------------------------
+    // Anwesenheit
+    // ------------------------------------------------------------------
+
+    private function normalizeMac(string $mac): string
+    {
+        $mac = strtolower(str_replace('-', ':', trim($mac)));
+        if (preg_match('/^[0-9a-f]{12}$/', $mac)) {
+            $mac = implode(':', str_split($mac, 2));
+        }
+        return preg_match('/^[0-9a-f]{2}(:[0-9a-f]{2}){5}$/', $mac) ? $mac : '';
+    }
+
+    /** Überwachte Geräte aus der Konfiguration: [['Name' => , 'MAC' => ], ...] (bereinigt). */
+    private function trackedDevices(): array
+    {
+        $list = json_decode($this->ReadPropertyString('TrackedDevices'), true);
+        $result = [];
+        if (!is_array($list)) {
+            return $result;
+        }
+        foreach ($list as $e) {
+            $mac = $this->normalizeMac((string) ($e['MAC'] ?? ''));
+            if ($mac === '' || isset($result[$mac])) {
+                continue;
+            }
+            $name = trim((string) ($e['Name'] ?? ''));
+            $result[$mac] = ['Name' => $name !== '' ? $name : $mac, 'MAC' => $mac];
+        }
+        return array_values($result);
+    }
+
+    /** Ziel des automatischen Scans als "netz/bits" (Konfiguration oder eigenes Netzwerk). */
+    private function defaultTarget(): string
+    {
+        $ip = trim($this->ReadPropertyString('Network'));
+        $bits = $this->ReadPropertyInteger('Bitcount');
+        if ($ip === '') {
+            $own = $this->GetValue('LocalNetwork');
+            return $own;
+        }
+        if (strpos($ip, '/') !== false) {
+            [$ip, $b] = explode('/', $ip, 2);
+            $bits = (int) $b;
+        }
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) {
+            return '';
+        }
+        return $this->networkAddress($ip, $bits) . '/' . $bits;
+    }
+
+    private function updatePresence(array $devices): void
+    {
+        $tracked = $this->trackedDevices();
+        if (count($tracked) === 0) {
+            return;
+        }
+        $seen = [];
+        foreach ($devices as $d) {
+            $seen[$d['MAC']] = $d['IP'];
+        }
+        $misses = json_decode($this->ReadAttributeString('Misses'), true) ?: [];
+        $threshold = max(1, $this->ReadPropertyInteger('MissesBeforeAbsent'));
+        $any = false;
+
+        foreach ($tracked as $t) {
+            $mac = $t['MAC'];
+            $hex = strtoupper(str_replace(':', '', $mac));
+            $pId = 'P_' . $hex;
+            if (isset($seen[$mac])) {
+                $misses[$mac] = 0;
+                $present = true;
+                $this->SetValue('S_' . $hex, time());
+            } else {
+                $misses[$mac] = ($misses[$mac] ?? 0) + 1;
+                $present = $misses[$mac] >= $threshold ? false : (bool) $this->GetValue($pId);
+            }
+            if ((bool) $this->GetValue($pId) !== $present) {
+                $this->SetValue($pId, $present);
+                $this->SendDebug('Anwesenheit', $t['Name'] . ' (' . $mac . '): ' . ($present ? 'anwesend' : 'abwesend'), 0);
+            }
+            $any = $any || $present;
+        }
+        $this->WriteAttributeString('Misses', json_encode($misses));
+        if ((bool) $this->GetValue('AnyPresent') !== $any) {
+            $this->SetValue('AnyPresent', $any);
+        }
     }
 
     // ------------------------------------------------------------------
