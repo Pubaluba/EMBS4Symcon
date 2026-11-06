@@ -112,6 +112,10 @@ class ArpScan extends IPSModule
      */
     public function InstallArpScan(): string
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            return $this->stateText();
+        }
+        @ini_set('memory_limit', '128M');
         try {
             $arch = $this->alpineArch();
             $mirror = rtrim(trim($this->ReadPropertyString('AlpineMirror')), '/');
@@ -142,7 +146,7 @@ class ArpScan extends IPSModule
                 $url = $mirror . '/' . $branch . '/' . $p['repo'] . '/' . $arch . '/' . $name . '-' . $p['ver'] . '.apk';
                 $this->SendDebug('Download', $url, 0);
                 $tmp = tempnam(sys_get_temp_dir(), 'apk');
-                file_put_contents($tmp, $this->download($url, 120));
+                $this->downloadToFile($url, $tmp, 120);
                 try {
                     $this->extractTar($this->gzReadAll($tmp), $root);
                 } finally {
@@ -202,16 +206,15 @@ class ArpScan extends IPSModule
     public function UpdateVendorDatabase(): string
     {
         try {
+            @ini_set('memory_limit', '128M');
             $dir = $this->runtimeDir();
             $tmpFile = $dir . '/oui.tsv.tmp';
             $out = fopen($tmpFile, 'w');
             $count = 0;
             foreach (self::OUI_URLS as $url) {
-                $csv = $this->download($url, 180);
-                $fh = fopen('php://temp', 'r+');
-                fwrite($fh, $csv);
-                rewind($fh);
-                unset($csv);
+                $csvFile = $dir . '/oui.csv.tmp';
+                $this->downloadToFile($url, $csvFile, 180);
+                $fh = fopen($csvFile, 'r');
                 fgetcsv($fh, 0, ',', '"', ''); // Kopfzeile
                 while (($r = fgetcsv($fh, 0, ',', '"', '')) !== false) {
                     if (count($r) >= 3 && preg_match('/^[0-9A-Fa-f]{6,9}$/', $r[1])) {
@@ -220,6 +223,7 @@ class ArpScan extends IPSModule
                     }
                 }
                 fclose($fh);
+                @unlink($csvFile);
             }
             fclose($out);
             if ($count < 1000) {
@@ -271,11 +275,26 @@ class ArpScan extends IPSModule
             trigger_error('Bitcount muss zwischen 16 und 32 liegen.', E_USER_WARNING);
             return [];
         }
-        $target = $this->networkAddress($IP, $Bitcount) . '/' . $Bitcount;
+        @ini_set('memory_limit', '128M');
+        $netAddr = $this->networkAddress($IP, $Bitcount);
+        // Große Netze in /24-Blöcke teilen (max. 254 Hosts pro Durchlauf)
+        $chunks = $this->chunks($netAddr, $Bitcount);
+        $this->SendDebug('Chunks', count($chunks) . ' Block/Blöcke', 0);
 
-        // arp-scan bereitstellen (System, eigener Pfad oder automatisch installiert)
+        $found = []; // Liste aus [ip, mac, vendorVonArpScan]
         try {
-            [$binary, $bundled] = $this->binaryCommand();
+            if (PHP_OS_FAMILY === 'Windows') {
+                $found = $this->scanViaArpTable($chunks);
+            } else {
+                try {
+                    [$binary, $bundled] = $this->binaryCommand();
+                    $found = $this->scanViaArpScan($binary, $bundled, $chunks);
+                } catch (Throwable $e) {
+                    // arp-scan nicht verfügbar -> Fallback über die ARP-Tabelle des Systems
+                    $this->LogMessage('arp-scan nicht nutzbar, verwende ARP-Tabelle: ' . $e->getMessage(), KL_WARNING);
+                    $found = $this->scanViaArpTable($chunks);
+                }
+            }
         } catch (Throwable $e) {
             trigger_error($e->getMessage(), E_USER_WARNING);
             return [];
@@ -283,56 +302,19 @@ class ArpScan extends IPSModule
 
         // Hersteller-Datenbank bei Bedarf einmalig laden (nicht kritisch)
         if (!is_file($this->runtimeDir() . '/oui.tsv')) {
-            $r = $this->UpdateVendorDatabase();
-            $this->SendDebug('OUI', $r, 0);
+            $this->SendDebug('OUI', $this->UpdateVendorDatabase(), 0);
         }
+        $vendors = $this->lookupOui(array_column($found, 1));
 
-        $cmd = ($this->ReadPropertyBoolean('UseSudo') ? 'sudo -n ' : '') . $binary
-            . ' --plain --quiet --retry=2 --timeout=' . max(50, $this->ReadPropertyInteger('Timeout'));
-        if ($bundled) {
-            // leere Vendor-Dateien: Herstellernamen kommen aus der IEEE-Liste dieses Moduls
-            $empty = $this->runtimeDir() . '/empty.txt';
-            if (!is_file($empty)) {
-                file_put_contents($empty, '');
-            }
-            $cmd .= ' --ouifile=' . escapeshellarg($empty) . ' --macfile=' . escapeshellarg($empty);
-        }
-        $interface = trim($this->ReadPropertyString('Interface'));
-        if ($interface !== '') {
-            if (!preg_match('/^[A-Za-z0-9._-]+$/', $interface)) {
-                trigger_error('Ungültiger Interface-Name.', E_USER_WARNING);
-                return [];
-            }
-            $cmd .= ' --interface=' . escapeshellarg($interface);
-        }
-        $cmd .= ' ' . escapeshellarg($target) . ' 2>&1';
-
-        $this->SendDebug('Command', $cmd, 0);
-        $output = [];
-        $rc = 0;
-        exec($cmd, $output, $rc);
-        $this->SendDebug('Output', implode("\n", $output), 0);
-
-        $oui = $this->loadOui();
         $devices = [];
-        foreach ($output as $line) {
-            if (preg_match('/^(\d+\.\d+\.\d+\.\d+)\s+([0-9a-f]{2}(?::[0-9a-f]{2}){5})\s*(.*)$/i', $line, $m)) {
-                $mac = strtolower($m[2]);
-                $own = trim(preg_replace('/\s*\(DUP: \d+\)\s*$/', '', $m[3]));
-                $devices[$m[1] . '|' . $mac] = [
-                    'IP'     => $m[1],
-                    'MAC'    => $mac,
-                    'Vendor' => $this->vendorFor($mac, $oui, $own)
-                ];
-            }
+        foreach ($found as [$ip, $mac, $own]) {
+            $devices[$ip . '|' . $mac] = [
+                'IP'     => $ip,
+                'MAC'    => $mac,
+                'Vendor' => $this->vendorFor($mac, $vendors, $own)
+            ];
         }
         $devices = array_values($devices);
-
-        if ($rc !== 0 && count($devices) === 0) {
-            trigger_error('arp-scan fehlgeschlagen (Code ' . $rc . '): ' . implode(' | ', $output)
-                . ' – fehlen Root-Rechte? Siehe Hinweis zu sudo.', E_USER_WARNING);
-            return [];
-        }
 
         usort($devices, function ($a, $b) {
             return ip2long($a['IP']) <=> ip2long($b['IP']);
@@ -345,6 +327,143 @@ class ArpScan extends IPSModule
         $this->UpdateFormField('Devices', 'values', json_encode($devices));
 
         return $devices;
+    }
+
+    // ------------------------------------------------------------------
+    // Scan-Methoden
+    // ------------------------------------------------------------------
+
+    /** Teilt ein Netz in /24-Blöcke. */
+    private function chunks(string $net, int $bits): array
+    {
+        if ($bits >= 24) {
+            return [[$net, $bits]];
+        }
+        $start = ip2long($net);
+        $count = 1 << (24 - $bits);
+        $res = [];
+        for ($i = 0; $i < $count; $i++) {
+            $res[] = [long2ip($start + ($i << 8)), 24];
+        }
+        return $res;
+    }
+
+    /** arp-scan blockweise ausführen. Rückgabe: [[ip, mac, hersteller], ...] */
+    private function scanViaArpScan(string $binary, bool $bundled, array $chunks): array
+    {
+        $cmdBase = ($this->ReadPropertyBoolean('UseSudo') ? 'sudo -n ' : '') . $binary
+            . ' --plain --quiet --retry=2 --timeout=' . max(50, $this->ReadPropertyInteger('Timeout'));
+        if ($bundled) {
+            // leere Vendor-Dateien: Herstellernamen kommen aus der IEEE-Liste dieses Moduls
+            $empty = $this->runtimeDir() . '/empty.txt';
+            if (!is_file($empty)) {
+                file_put_contents($empty, '');
+            }
+            $cmdBase .= ' --ouifile=' . escapeshellarg($empty) . ' --macfile=' . escapeshellarg($empty);
+        }
+        $interface = trim($this->ReadPropertyString('Interface'));
+        if ($interface !== '') {
+            if (!preg_match('/^[A-Za-z0-9._-]+$/', $interface)) {
+                throw new Exception('Ungültiger Interface-Name.');
+            }
+            $cmdBase .= ' --interface=' . escapeshellarg($interface);
+        }
+
+        $found = [];
+        $lastError = '';
+        foreach ($chunks as [$net, $bits]) {
+            $cmd = $cmdBase . ' ' . escapeshellarg($net . '/' . $bits) . ' 2>&1';
+            $this->SendDebug('Command', $cmd, 0);
+            $output = [];
+            $rc = 0;
+            exec($cmd, $output, $rc);
+            $this->SendDebug('Output ' . $net, implode("\n", $output), 0);
+            $n = 0;
+            foreach ($output as $line) {
+                if (preg_match('/^(\d+\.\d+\.\d+\.\d+)\s+([0-9a-f]{2}(?::[0-9a-f]{2}){5})\s*(.*)$/i', $line, $m)) {
+                    $found[] = [$m[1], strtolower($m[2]), trim(preg_replace('/\s*\(DUP: \d+\)\s*$/', '', $m[3]))];
+                    $n++;
+                }
+            }
+            if ($rc !== 0 && $n === 0) {
+                $lastError = 'arp-scan fehlgeschlagen (Code ' . $rc . '): ' . implode(' | ', $output)
+                    . ' – fehlen Root-Rechte? Siehe Hinweis zu sudo.';
+            }
+        }
+        if (count($found) === 0 && $lastError !== '') {
+            throw new Exception($lastError);
+        }
+        return $found;
+    }
+
+    /**
+     * Windows (und Fallback unter Linux): UDP-Pakete an alle Hosts lösen die ARP-Auflösung
+     * des Betriebssystems aus, anschließend wird die ARP-Tabelle ("arp -a") ausgelesen.
+     */
+    private function scanViaArpTable(array $chunks): array
+    {
+        $wait = max(500, $this->ReadPropertyInteger('Timeout') * 3) * 1000;
+        for ($round = 0; $round < 2; $round++) {
+            foreach ($chunks as [$net, $bits]) {
+                $base = ip2long($net);
+                $size = 1 << (32 - $bits);
+                $from = $bits >= 31 ? 0 : 1;
+                $to = $bits >= 31 ? $size - 1 : $size - 2;
+                for ($i = $from; $i <= $to; $i++) {
+                    $s = @stream_socket_client('udp://' . long2ip($base + $i) . ':9', $errno, $errstr, 0.05);
+                    if ($s) {
+                        @fwrite($s, "\0");
+                        fclose($s);
+                    }
+                }
+            }
+            usleep($wait);
+        }
+
+        // Nur Einträge aus dem gewünschten Netz
+        $ranges = [];
+        foreach ($chunks as [$net, $bits]) {
+            $ranges[] = [ip2long($net), ip2long($net) + (1 << (32 - $bits)) - 1];
+        }
+        $found = [];
+        foreach ($this->readArpTable() as [$ip, $mac]) {
+            $l = ip2long($ip);
+            foreach ($ranges as [$lo, $hi]) {
+                if ($l >= $lo && $l <= $hi) {
+                    $found[] = [$ip, $mac, ''];
+                    break;
+                }
+            }
+        }
+        return $found;
+    }
+
+    private function readArpTable(): array
+    {
+        $rows = [];
+        if (PHP_OS_FAMILY === 'Windows') {
+            $out = [];
+            exec('arp -a', $out);
+            $this->SendDebug('arp -a', implode("\n", $out), 0);
+            foreach ($out as $l) {
+                if (preg_match('/(\d+\.\d+\.\d+\.\d+)\s+([0-9a-f]{2}(?:-[0-9a-f]{2}){5})/i', $l, $m)) {
+                    $rows[] = [$m[1], strtolower(str_replace('-', ':', $m[2]))];
+                }
+            }
+        } else {
+            $lines = @file('/proc/net/arp', FILE_IGNORE_NEW_LINES) ?: [];
+            array_shift($lines);
+            foreach ($lines as $l) {
+                $c = preg_split('/\s+/', trim($l));
+                if (count($c) >= 4 && $c[2] === '0x2' && $c[3] !== '00:00:00:00:00:00') {
+                    $rows[] = [$c[0], strtolower($c[3])];
+                }
+            }
+        }
+        // Broadcast und Multicast entfernen
+        return array_values(array_filter($rows, function ($r) {
+            return $r[1] !== 'ff:ff:ff:ff:ff:ff' && strncmp($r[1], '01:00:5e', 8) !== 0 && strncmp($r[1], '33:33', 5) !== 0;
+        }));
     }
 
     // ------------------------------------------------------------------
@@ -403,6 +522,12 @@ class ArpScan extends IPSModule
     private function stateText(): string
     {
         $parts = [];
+        if (PHP_OS_FAMILY === 'Windows') {
+            $parts[] = 'Windows: Scan über ARP-Tabelle (arp -a), arp-scan nicht erforderlich';
+            $oui = __DIR__ . '/runtime/oui.tsv';
+            $parts[] = is_file($oui) ? 'Hersteller-Datenbank: Stand ' . date('d.m.Y', filemtime($oui)) : 'Hersteller-Datenbank: nicht geladen';
+            return implode(' | ', $parts);
+        }
         $info = @json_decode((string) @file_get_contents(__DIR__ . '/runtime/installed.json'), true);
         if (is_array($info) && $this->bundledCommand() !== null) {
             $parts[] = 'arp-scan: installiert im Modulordner (' . ($info['versions']['arp-scan'] ?? '?') . ', ' . $info['arch'] . ')';
@@ -444,46 +569,124 @@ class ArpScan extends IPSModule
         return $map[$machine];
     }
 
+    /** Liest den APKINDEX streamend (speicherschonend) und merkt sich nur das Nötigste. */
     private function loadApkIndex(array &$index, string $url, string $repo): void
     {
         $tmp = tempnam(sys_get_temp_dir(), 'apkindex');
+        $found = false;
         try {
-            file_put_contents($tmp, $this->download($url, 120));
-            $text = '';
-            foreach ($this->parseTar($this->gzReadAll($tmp)) as $entry) {
-                if ($entry['name'] === 'APKINDEX') {
-                    $text = $entry['data'];
+            $this->downloadToFile($url, $tmp, 120);
+            $gz = gzopen($tmp, 'rb');
+            if ($gz === false) {
+                throw new Exception('APKINDEX nicht lesbar: ' . $url);
+            }
+            while (true) {
+                $h = $this->gzReadExact($gz, 512);
+                if (strlen($h) < 512) {
                     break;
                 }
+                if (trim($h, "\0") === '') {
+                    continue;
+                }
+                $name = preg_replace('#^(\./)+#', '', rtrim(substr($h, 0, 100), "\0"));
+                $size = (int) octdec(trim(substr($h, 124, 12), " \0"));
+                $padded = (int) (ceil($size / 512) * 512);
+                if ($name === 'APKINDEX') {
+                    $this->parseApkIndexStream($gz, $size, $index, $repo);
+                    $this->gzSkip($gz, $padded - $size);
+                    $found = true;
+                    break;
+                }
+                $this->gzSkip($gz, $padded);
             }
+            gzclose($gz);
         } finally {
             @unlink($tmp);
         }
-        if ($text === '') {
+        if (!$found) {
             throw new Exception('APKINDEX leer oder nicht lesbar: ' . $url);
         }
-        foreach (preg_split("/\n\n/", $text) as $block) {
-            $f = [];
-            foreach (explode("\n", $block) as $line) {
-                if (strlen($line) > 2 && $line[1] === ':') {
-                    $f[$line[0]] = substr($line, 2);
+    }
+
+    private function parseApkIndexStream($gz, int $size, array &$index, string $repo): void
+    {
+        $remaining = $size;
+        $carry = '';
+        $fields = [];
+        while ($remaining > 0) {
+            $chunk = gzread($gz, min(65536, $remaining));
+            if ($chunk === false || $chunk === '') {
+                break;
+            }
+            $remaining -= strlen($chunk);
+            $lines = explode("\n", $carry . $chunk);
+            $carry = array_pop($lines);
+            foreach ($lines as $line) {
+                $this->apkIndexLine($line, $fields, $index, $repo);
+            }
+        }
+        if ($carry !== '') {
+            $this->apkIndexLine($carry, $fields, $index, $repo);
+        }
+        $this->apkIndexLine('', $fields, $index, $repo);
+    }
+
+    private function apkIndexLine(string $line, array &$f, array &$index, string $repo): void
+    {
+        if ($line !== '') {
+            if (strlen($line) > 2 && $line[1] === ':') {
+                $k = $line[0];
+                if ($k === 'P' || $k === 'V' || $k === 'D' || $k === 'p') {
+                    $f[$k] = substr($line, 2);
                 }
             }
-            if (!isset($f['P'], $f['V']) || isset($index['byName'][$f['P']])) {
-                continue;
-            }
-            $index['byName'][$f['P']] = [
-                'ver'  => $f['V'],
-                'repo' => $repo,
-                'deps' => isset($f['D']) ? preg_split('/\s+/', trim($f['D'])) : []
-            ];
-            $provides = array_merge([$f['P']], isset($f['p']) ? preg_split('/\s+/', trim($f['p'])) : []);
-            foreach ($provides as $tok) {
-                $tok = preg_replace('/[<>=~].*$/', '', $tok);
-                if ($tok !== '' && !isset($index['prov'][$tok])) {
-                    $index['prov'][$tok] = $f['P'];
+            return;
+        }
+        // Leerzeile = Paket abgeschlossen
+        if (isset($f['P'], $f['V']) && !isset($index['byName'][$f['P']])) {
+            $deps = [];
+            foreach (preg_split('/\s+/', trim($f['D'] ?? '')) as $d) {
+                if (strncmp($d, 'so:', 3) === 0) {
+                    $deps[] = preg_replace('/[<>=~].*$/', '', $d);
                 }
             }
+            $index['byName'][$f['P']] = ['ver' => $f['V'], 'repo' => $repo, 'deps' => $deps];
+            if (!isset($index['prov'][$f['P']])) {
+                $index['prov'][$f['P']] = $f['P'];
+            }
+            foreach (preg_split('/\s+/', trim($f['p'] ?? '')) as $tok) {
+                if (strncmp($tok, 'so:', 3) === 0) {
+                    $tok = preg_replace('/[<>=~].*$/', '', $tok);
+                    if (!isset($index['prov'][$tok])) {
+                        $index['prov'][$tok] = $f['P'];
+                    }
+                }
+            }
+        }
+        $f = [];
+    }
+
+    private function gzReadExact($gz, int $n): string
+    {
+        $out = '';
+        while (strlen($out) < $n && !gzeof($gz)) {
+            $c = gzread($gz, $n - strlen($out));
+            if ($c === false || $c === '') {
+                break;
+            }
+            $out .= $c;
+        }
+        return $out;
+    }
+
+    private function gzSkip($gz, int $n): void
+    {
+        while ($n > 0 && !gzeof($gz)) {
+            $c = gzread($gz, min(65536, $n));
+            if ($c === false || $c === '') {
+                break;
+            }
+            $n -= strlen($c);
         }
     }
 
@@ -502,10 +705,9 @@ class ArpScan extends IPSModule
             }
             $result[] = $name;
             foreach ($index['byName'][$name]['deps'] as $dep) {
-                if ($dep === '' || $dep[0] === '!' || strncmp($dep, 'so:', 3) !== 0) {
+                if ($dep === '') {
                     continue;
                 }
-                $dep = preg_replace('/[<>=~].*$/', '', $dep);
                 if (isset($index['prov'][$dep])) {
                     $queue[] = $index['prov'][$dep];
                 } else {
@@ -524,33 +726,36 @@ class ArpScan extends IPSModule
     // Download / Archive
     // ------------------------------------------------------------------
 
-    private function download(string $url, int $timeout = 60): string
+    /** Lädt direkt in eine Datei (kein großer String im Arbeitsspeicher). */
+    private function downloadToFile(string $url, string $file, int $timeout = 60): void
     {
         $ua = 'Mozilla/5.0 (compatible; Symcon-ArpScan)';
         if (function_exists('curl_init')) {
+            $fh = fopen($file, 'wb');
             $ch = curl_init($url);
             curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FILE           => $fh,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_TIMEOUT        => $timeout,
                 CURLOPT_CONNECTTIMEOUT => 15,
                 CURLOPT_USERAGENT      => $ua
             ]);
-            $data = curl_exec($ch);
+            $ok = curl_exec($ch);
             $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $err = curl_error($ch);
             curl_close($ch);
-            if ($data !== false && $code === 200) {
-                return $data;
+            fclose($fh);
+            if ($ok === false || $code !== 200) {
+                @unlink($file);
+                throw new Exception('Download fehlgeschlagen: ' . $url . ' (HTTP ' . $code . ' ' . $err . ')');
             }
-            throw new Exception('Download fehlgeschlagen: ' . $url . ' (HTTP ' . $code . ' ' . $err . ')');
+            return;
         }
         $ctx = stream_context_create(['http' => ['timeout' => $timeout, 'follow_location' => 1, 'header' => 'User-Agent: ' . $ua . "\r\n"]]);
-        $data = @file_get_contents($url, false, $ctx);
-        if ($data === false) {
+        if (!@copy($url, $file, $ctx)) {
+            @unlink($file);
             throw new Exception('Download fehlgeschlagen: ' . $url . ' (Internetzugang/Zertifikate prüfen)');
         }
-        return $data;
     }
 
     /** Liest .gz inkl. aneinandergehängter gzip-Segmente (APK-Format). */
@@ -701,18 +906,29 @@ class ArpScan extends IPSModule
     // Hersteller
     // ------------------------------------------------------------------
 
-    private function loadOui(): array
+    /** Liest nur die für die gefundenen MACs relevanten Zeilen aus der Hersteller-Datei. */
+    private function lookupOui(array $macs): array
     {
         $file = __DIR__ . '/runtime/oui.tsv';
+        $wanted = [];
+        foreach ($macs as $mac) {
+            $hex = strtoupper(str_replace(':', '', $mac));
+            foreach ([9, 7, 6] as $l) {
+                $wanted[substr($hex, 0, $l)] = true;
+            }
+        }
         $db = [];
-        if (!is_file($file)) {
+        if (!is_file($file) || !$wanted) {
             return $db;
         }
         $fh = fopen($file, 'r');
         while (($line = fgets($fh)) !== false) {
-            $p = explode("\t", rtrim($line, "\r\n"), 2);
-            if (count($p) === 2) {
-                $db[$p[0]] = $p[1];
+            $tab = strpos($line, "\t");
+            if ($tab !== false) {
+                $key = substr($line, 0, $tab);
+                if (isset($wanted[$key])) {
+                    $db[$key] = rtrim(substr($line, $tab + 1), "\r\n");
+                }
             }
         }
         fclose($fh);
@@ -743,6 +959,9 @@ class ArpScan extends IPSModule
 
     private function detectInterfaces(): array
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            return $this->detectInterfacesWindows();
+        }
         $result = [];
         $lines = [];
         exec('ip -4 -o addr show scope global 2>/dev/null', $lines);
@@ -762,6 +981,50 @@ class ArpScan extends IPSModule
                     $result[] = ['Interface' => '', 'IP' => $h, 'Bitcount' => 24];
                 }
             }
+        }
+        return $result;
+    }
+
+    /** Windows: Default-Route per "route print", Subnetzmaske aus "ipconfig" (sprachunabhängig). */
+    private function detectInterfacesWindows(): array
+    {
+        $routeOut = [];
+        exec('route print -4 0.0.0.0', $routeOut);
+        $defaultIp = '';
+        $bestMetric = PHP_INT_MAX;
+        foreach ($routeOut as $l) {
+            if (preg_match('/^\s*0\.0\.0\.0\s+0\.0\.0\.0\s+\S+\s+(\d+\.\d+\.\d+\.\d+)\s+(\d+)/', $l, $m) && (int) $m[2] < $bestMetric) {
+                $bestMetric = (int) $m[2];
+                $defaultIp = $m[1];
+            }
+        }
+
+        $cfg = [];
+        exec('ipconfig', $cfg);
+        $ips = [];
+        foreach ($cfg as $l) {
+            if (preg_match('/:\s*(\d+\.\d+\.\d+\.\d+)/', $l, $m)) {
+                $ips[] = $m[1];
+            }
+        }
+        $result = [];
+        for ($i = 0; $i + 1 < count($ips); $i++) {
+            $ip = $ips[$i];
+            $mask = ip2long($ips[$i + 1]);
+            if ($mask === false || strncmp($ips[$i + 1], '255.', 4) !== 0) {
+                continue;
+            }
+            $bin = decbin($mask);
+            if (preg_match('/^1+0*$/', $bin) !== 1 || strncmp($ip, '169.254.', 8) === 0 || strncmp($ip, '127.', 4) === 0) {
+                continue;
+            }
+            $entry = ['Interface' => '', 'IP' => $ip, 'Bitcount' => substr_count($bin, '1')];
+            if ($ip === $defaultIp) {
+                array_unshift($result, $entry);
+            } else {
+                $result[] = $entry;
+            }
+            $i++;
         }
         return $result;
     }
