@@ -1,0 +1,76 @@
+{
+    "elements": [
+        {
+            "type": "ValidationTextBox",
+            "name": "ArpScanPath",
+            "caption": "Pfad zu arp-scan"
+        },
+        {
+            "type": "CheckBox",
+            "name": "UseSudo",
+            "caption": "arp-scan mit sudo ausführen (sudo -n, NOPASSWD erforderlich)"
+        },
+        {
+            "type": "ValidationTextBox",
+            "name": "Interface",
+            "caption": "Netzwerk-Interface (leer = automatisch)"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "Timeout",
+            "caption": "Timeout pro Host",
+            "suffix": "ms",
+            "minimum": 50,
+            "maximum": 5000
+        },
+        {
+            "type": "RowLayout",
+            "items": [
+                {
+                    "type": "ValidationTextBox",
+                    "name": "Network",
+                    "caption": "Netzwerk / IP"
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "Bitcount",
+                    "caption": "Bitcount (CIDR)",
+                    "minimum": 16,
+                    "maximum": 32
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "type": "RowLayout",
+            "items": [
+                {
+                    "type": "Button",
+                    "caption": "Eigene IP ermitteln",
+                    "onClick": "echo ARPS_GetIP($id);"
+                },
+                {
+                    "type": "Button",
+                    "caption": "Netzwerk scannen",
+                    "onClick": "ARPS_ScanNetwork($id, $Network, $Bitcount);"
+                }
+            ]
+        },
+        {
+            "type": "List",
+            "name": "Devices",
+            "caption": "Gefundene Geräte",
+            "rowCount": 15,
+            "add": false,
+            "delete": false,
+            "columns": [
+                { "caption": "IP-Adresse", "name": "IP", "width": "150px" },
+                { "caption": "MAC-Adresse", "name": "MAC", "width": "170px" },
+                { "caption": "Hersteller", "name": "Vendor", "width": "auto" }
+            ],
+            "values": []
+        }
+    ],
+    "status": []
+}
