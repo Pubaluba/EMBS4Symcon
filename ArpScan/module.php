@@ -38,6 +38,8 @@ class ArpScan extends IPSModule
         // Diese Zeile nicht löschen
         parent::ApplyChanges();
 
+        $this->migrateOldRuntime();
+
         $this->RegisterVariableString('LocalIP', 'Eigene IP', '', 10);
         $this->RegisterVariableString('LocalNetwork', 'Eigenes Netzwerk', '', 20);
         $this->RegisterVariableInteger('DeviceCount', 'Gefundene Geräte', '', 30);
@@ -669,13 +671,33 @@ class ArpScan extends IPSModule
     // arp-scan Bereitstellung
     // ------------------------------------------------------------------
 
+    /** Datenordner außerhalb des Modulordners (bleibt bei Modul-Updates erhalten). */
+    private function runtimePath(): string
+    {
+        return rtrim(IPS_GetKernelDir(), '/\\') . '/ArpScan';
+    }
+
     private function runtimeDir(): string
     {
-        $dir = __DIR__ . '/runtime';
+        $dir = $this->runtimePath();
         if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
-            throw new Exception('Modulordner nicht beschreibbar: ' . $dir);
+            throw new Exception('Datenordner nicht beschreibbar: ' . $dir);
         }
         return $dir;
+    }
+
+    /** Verschiebt einen alten runtime/-Ordner aus dem Modulordner (verursacht Fehler beim Modul-Update). */
+    private function migrateOldRuntime(): void
+    {
+        $old = __DIR__ . '/runtime';
+        if (!is_dir($old)) {
+            return;
+        }
+        $new = $this->runtimePath();
+        if (!is_dir($new) && @rename($old, $new)) {
+            return;
+        }
+        $this->rrmdir($old);
     }
 
     /** @return array [Befehl, bundled] */
@@ -703,11 +725,11 @@ class ArpScan extends IPSModule
 
     private function bundledCommand(): ?string
     {
-        $info = @json_decode((string) @file_get_contents(__DIR__ . '/runtime/installed.json'), true);
+        $info = @json_decode((string) @file_get_contents($this->runtimePath() . '/installed.json'), true);
         if (!is_array($info)) {
             return null;
         }
-        $root = __DIR__ . '/runtime/root';
+        $root = $this->runtimePath() . '/root';
         $loader = $root . '/' . $info['loader'];
         $bin = $root . '/' . $info['binary'];
         if (!is_file($loader) || !is_file($bin)) {
@@ -723,11 +745,11 @@ class ArpScan extends IPSModule
         $parts = [];
         if (PHP_OS_FAMILY === 'Windows') {
             $parts[] = 'Windows: Scan über ARP-Tabelle (arp -a), arp-scan nicht erforderlich';
-            $oui = __DIR__ . '/runtime/oui.tsv';
+            $oui = $this->runtimePath() . '/oui.tsv';
             $parts[] = is_file($oui) ? 'Hersteller-Datenbank: Stand ' . date('d.m.Y', filemtime($oui)) : 'Hersteller-Datenbank: nicht geladen';
             return implode(' | ', $parts);
         }
-        $info = @json_decode((string) @file_get_contents(__DIR__ . '/runtime/installed.json'), true);
+        $info = @json_decode((string) @file_get_contents($this->runtimePath() . '/installed.json'), true);
         if (is_array($info) && $this->bundledCommand() !== null) {
             $parts[] = 'arp-scan: installiert im Modulordner (' . ($info['versions']['arp-scan'] ?? '?') . ', ' . $info['arch'] . ')';
         } else {
@@ -740,7 +762,7 @@ class ArpScan extends IPSModule
             }
             $parts[] = $sys !== '' ? 'arp-scan: System-Installation (' . $sys . ')' : 'arp-scan: nicht installiert (wird beim ersten Scan automatisch geladen)';
         }
-        $oui = __DIR__ . '/runtime/oui.tsv';
+        $oui = $this->runtimePath() . '/oui.tsv';
         $parts[] = is_file($oui) ? 'Hersteller-Datenbank: Stand ' . date('d.m.Y', filemtime($oui)) : 'Hersteller-Datenbank: nicht geladen';
         return implode(' | ', $parts);
     }
@@ -1108,7 +1130,7 @@ class ArpScan extends IPSModule
     /** Liest nur die für die gefundenen MACs relevanten Zeilen aus der Hersteller-Datei. */
     private function lookupOui(array $macs): array
     {
-        $file = __DIR__ . '/runtime/oui.tsv';
+        $file = $this->runtimePath() . '/oui.tsv';
         $wanted = [];
         foreach ($macs as $mac) {
             $hex = strtoupper(str_replace(':', '', $mac));
