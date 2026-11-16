@@ -1,0 +1,6 @@
+#!/bin/sh
+# Aktivieren:  git config core.hooksPath .githooks
+python3 .dev/symcon_lint.py || {
+    echo "Commit abgebrochen: symcon_lint meldet Fehler (siehe oben)." >&2
+    exit 1
+}

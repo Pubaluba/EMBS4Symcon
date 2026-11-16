@@ -1,0 +1,17 @@
+{
+    "$schema": "https://www.symcon.de/assets/files/validation/formSchema.json",
+    "elements": [
+        { "type": "ValidationTextBox", "name": "Host", "caption": "Host (IPv4-Adresse)" },
+        { "type": "NumberSpinner", "name": "Interval", "caption": "Intervall", "suffix": "Minuten", "minimum": 0 }
+    ],
+    "actions": [
+        { "type": "ValidationTextBox", "name": "TestHost", "caption": "Test-Host (leer = gespeicherter Host)" },
+        { "type": "Button", "caption": "Prüfen", "onClick": "echo MMOD_Check($id, $TestHost ?? '');" },
+        { "type": "Label", "name": "StatusLabel", "caption": "Bereit." }
+    ],
+    "status": [
+        { "code": 102, "icon": "active", "caption": "Aktiv" },
+        { "code": 104, "icon": "inactive", "caption": "Inaktiv (kein Host eingetragen)" },
+        { "code": 201, "icon": "error", "caption": "Ungültige IPv4-Adresse" }
+    ]
+}

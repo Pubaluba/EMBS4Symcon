@@ -1,0 +1,268 @@
+{
+    "$schema": "https://www.symcon.de/assets/files/validation/formSchema.json",
+    "elements": [
+        {
+            "type": "ExpansionPanel", "caption": "⚙️ Allgemein", "expanded": true,
+            "items": [
+                { "type": "CheckBox", "name": "Active", "caption": "Prognose aktiv" },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "IntervalHours", "caption": "Neu berechnen alle", "suffix": " h", "minimum": 1, "maximum": 24 },
+                        {
+                            "type": "Select", "name": "Resolution", "caption": "Auflösung der Prognose",
+                            "options": [
+                                { "caption": "15 Minuten", "value": 15 },
+                                { "caption": "30 Minuten", "value": 30 },
+                                { "caption": "60 Minuten", "value": 60 }
+                            ]
+                        }
+                    ]
+                },
+                { "type": "Label", "caption": "Standort der Anlage (für Wettervorhersage und Tageslänge), z. B. aus der Kartenansicht kopieren:" },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "Latitude", "caption": "Breitengrad", "digits": 4, "minimum": -90, "maximum": 90 },
+                        { "type": "NumberSpinner", "name": "Longitude", "caption": "Längengrad", "digits": 4, "minimum": -180, "maximum": 180 }
+                    ]
+                },
+                { "type": "Label", "name": "InfoLocation", "caption": "" },
+                {
+                    "type": "Select", "name": "State", "caption": "Bundesland (Feiertage)",
+                    "options": [
+                        { "caption": "nur bundesweite Feiertage", "value": "" },
+                        { "caption": "Baden-Württemberg", "value": "BW" },
+                        { "caption": "Bayern", "value": "BY" },
+                        { "caption": "Berlin", "value": "BE" },
+                        { "caption": "Brandenburg", "value": "BB" },
+                        { "caption": "Bremen", "value": "HB" },
+                        { "caption": "Hamburg", "value": "HH" },
+                        { "caption": "Hessen", "value": "HE" },
+                        { "caption": "Mecklenburg-Vorpommern", "value": "MV" },
+                        { "caption": "Niedersachsen", "value": "NI" },
+                        { "caption": "Nordrhein-Westfalen", "value": "NW" },
+                        { "caption": "Rheinland-Pfalz", "value": "RP" },
+                        { "caption": "Saarland", "value": "SL" },
+                        { "caption": "Sachsen", "value": "SN" },
+                        { "caption": "Sachsen-Anhalt", "value": "ST" },
+                        { "caption": "Schleswig-Holstein", "value": "SH" },
+                        { "caption": "Thüringen", "value": "TH" }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "LookbackDays", "caption": "Historie", "suffix": " Tage", "minimum": 14, "maximum": 1830 },
+                        { "type": "NumberSpinner", "name": "Neighbors", "caption": "Vergleichstage je Prognose", "minimum": 3, "maximum": 60 }
+                    ]
+                },
+                { "type": "Label", "caption": "Bis zu 5 Jahre Historie: Das Modul liest sie einmalig in Schritten ein (je Lauf ca. 15 s) und merkt sich abgeschlossene Tage." }
+            ]
+        },
+        {
+            "type": "ExpansionPanel", "caption": "🏠 Verbrauch", "expanded": true,
+            "items": [
+                {
+                    "type": "Select", "name": "Source", "caption": "Woraus entsteht die Grundlast?", "onChange": "EPL_SelectSource($id, $Source);",
+                    "options": [
+                        { "caption": "Hauptzähler abzüglich Wärmepumpe, Wallbox und weiterer Abzüge", "value": 0 },
+                        { "caption": "Summe der ungesteuerten Verbraucher (Unterzähler)", "value": 1 }
+                    ]
+                },
+                {
+                    "type": "RowLayout", "name": "MainRow",
+                    "items": [
+                        { "type": "SelectVariable", "name": "MainVar", "caption": "Hauptzähler (Gesamtverbrauch)", "width": "320px" },
+                        {
+                            "type": "Select", "name": "MainType", "caption": "Messart",
+                            "options": [
+                                { "caption": "Leistung (W/kW)", "value": 0 },
+                                { "caption": "Energie je Intervall (Wh/kWh)", "value": 1 },
+                                { "caption": "Zählerstand (Wh/kWh)", "value": 2 }
+                            ]
+                        },
+                        {
+                            "type": "Select", "name": "MainUnit", "caption": "Einheit",
+                            "options": [
+                                { "caption": "automatisch (Profil)", "value": 0 },
+                                { "caption": "W bzw. Wh", "value": 1 },
+                                { "caption": "kW bzw. kWh", "value": 2 },
+                                { "caption": "MW bzw. MWh", "value": 3 }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "List", "name": "Deductions", "caption": "Weitere Abzüge vom Hauptzähler (z. B. Batterieladung, Prozesslast, die das EMS steuert)",
+                    "rowCount": 3, "add": true, "delete": true,
+                    "columns": [
+                        { "caption": "Bezeichnung", "name": "Name", "width": "200px", "add": "", "edit": { "type": "ValidationTextBox" } },
+                        { "caption": "Variable", "name": "VariableID", "width": "auto", "add": 0, "edit": { "type": "SelectVariable" } },
+                        { "caption": "Messart", "name": "Type", "width": "220px", "add": 0, "edit": { "type": "Select", "options": [
+                            { "caption": "Leistung (W/kW)", "value": 0 }, { "caption": "Energie je Intervall (Wh/kWh)", "value": 1 }, { "caption": "Zählerstand (Wh/kWh)", "value": 2 } ] } },
+                        { "caption": "Einheit", "name": "Unit", "width": "170px", "add": 0, "edit": { "type": "Select", "options": [
+                            { "caption": "automatisch (Profil)", "value": 0 }, { "caption": "W bzw. Wh", "value": 1 }, { "caption": "kW bzw. kWh", "value": 2 }, { "caption": "MW bzw. MWh", "value": 3 } ] } }
+                    ]
+                },
+                {
+                    "type": "List", "name": "Consumers", "caption": "Ungesteuerte Verbraucher (werden summiert)",
+                    "rowCount": 5, "add": true, "delete": true,
+                    "columns": [
+                        { "caption": "Bezeichnung", "name": "Name", "width": "200px", "add": "", "edit": { "type": "ValidationTextBox" } },
+                        { "caption": "Variable", "name": "VariableID", "width": "auto", "add": 0, "edit": { "type": "SelectVariable" } },
+                        { "caption": "Messart", "name": "Type", "width": "220px", "add": 0, "edit": { "type": "Select", "options": [
+                            { "caption": "Leistung (W/kW)", "value": 0 }, { "caption": "Energie je Intervall (Wh/kWh)", "value": 1 }, { "caption": "Zählerstand (Wh/kWh)", "value": 2 } ] } },
+                        { "caption": "Einheit", "name": "Unit", "width": "170px", "add": 0, "edit": { "type": "Select", "options": [
+                            { "caption": "automatisch (Profil)", "value": 0 }, { "caption": "W bzw. Wh", "value": 1 }, { "caption": "kW bzw. kWh", "value": 2 }, { "caption": "MW bzw. MWh", "value": 3 } ] } }
+                    ]
+                },
+                { "type": "Label", "caption": "Ein Tag zählt bei der Summe nur, wenn jeder Verbraucher an diesem Tag Daten hat. Wärmepumpen und Wallboxen gehören nicht hierher, sondern in ihre eigenen Bereiche." },
+                { "type": "Label", "caption": "Messart „Energie je Intervall“: jeder Archivwert ist die Energie eines festen Intervalls (Lastgang, z. B. 15-min-kWh). „Zählerstand“: fortlaufender Zähler; schneller mit Aggregationstyp „Zähler“ im Archiv." },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        {
+                            "type": "Select", "name": "EnergyInterval", "caption": "Intervall der Energiewerte",
+                            "options": [
+                                { "caption": "5 Minuten", "value": 5 },
+                                { "caption": "10 Minuten", "value": 10 },
+                                { "caption": "15 Minuten", "value": 15 },
+                                { "caption": "30 Minuten", "value": 30 },
+                                { "caption": "60 Minuten", "value": 60 }
+                            ]
+                        },
+                        { "type": "CheckBox", "name": "StampIsEnd", "caption": "Zeitstempel markiert das Intervallende (üblich bei Lastgängen)" }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel", "caption": "🌡️ Temperatur und Betrieb", "expanded": false,
+            "items": [
+                { "type": "SelectVariable", "name": "TempVar", "caption": "Außentemperatur (archiviert, °C)", "width": "400px" },
+                {
+                    "type": "Select", "name": "TempSource", "caption": "Temperaturvorhersage",
+                    "options": [
+                        { "caption": "Open-Meteo (kostenlos, braucht den Standort)", "value": 0 },
+                        { "caption": "eigene Variablen mit dem Tagesmittel", "value": 1 },
+                        { "caption": "keine (Mittel der Vorjahre)", "value": 2 }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "SelectVariable", "name": "TempFc0", "caption": "Tagesmittel heute" },
+                        { "type": "SelectVariable", "name": "TempFc1", "caption": "Tagesmittel morgen" },
+                        { "type": "SelectVariable", "name": "TempFc2", "caption": "Tagesmittel übermorgen" }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "HeatLimit", "caption": "Heizgrenze", "suffix": " °C", "digits": 1 },
+                        { "type": "NumberSpinner", "name": "CoolLimit", "caption": "Kühlgrenze", "suffix": " °C", "digits": 1 }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "SelectVariable", "name": "PresenceVar", "caption": "Anwesenheit bzw. Betrieb offen (0/1, archiviert, optional)", "width": "400px" },
+                        { "type": "CheckBox", "name": "PresenceInvert", "caption": "Variable meldet Abwesenheit" }
+                    ]
+                },
+                {
+                    "type": "List", "name": "Closures", "caption": "Abwesenheiten / Betriebsferien / Brückentage (vergangene und geplante)",
+                    "rowCount": 4, "add": true, "delete": true,
+                    "columns": [
+                        { "caption": "von", "name": "From", "width": "200px", "add": "", "edit": { "type": "SelectDate" } },
+                        { "caption": "bis", "name": "To", "width": "200px", "add": "", "edit": { "type": "SelectDate" } },
+                        { "caption": "Bemerkung", "name": "Note", "width": "auto", "add": "", "edit": { "type": "ValidationTextBox" } }
+                    ]
+                },
+                { "type": "Label", "caption": "Tage in dieser Liste gelten als „niemand da / Betrieb geschlossen“. Für die Vergangenheit hat die Anwesenheitsvariable Vorrang, wenn sie Daten hat." }
+            ]
+        },
+        {
+            "type": "ExpansionPanel", "caption": "♨️ Wärmepumpe / Klima", "expanded": false,
+            "items": [
+                { "type": "CheckBox", "name": "HeatInForecast", "caption": "Geräte über die Temperatur prognostizieren und zur Grundlast addieren" },
+                {
+                    "type": "List", "name": "HeatDevices", "caption": "Temperaturabhängige Geräte",
+                    "rowCount": 3, "add": true, "delete": true,
+                    "columns": [
+                        { "caption": "Bezeichnung", "name": "Name", "width": "180px", "add": "", "edit": { "type": "ValidationTextBox" } },
+                        { "caption": "Variable", "name": "VariableID", "width": "auto", "add": 0, "edit": { "type": "SelectVariable" } },
+                        { "caption": "Messart", "name": "Type", "width": "220px", "add": 0, "edit": { "type": "Select", "options": [
+                            { "caption": "Leistung (W/kW)", "value": 0 }, { "caption": "Energie je Intervall (Wh/kWh)", "value": 1 }, { "caption": "Zählerstand (Wh/kWh)", "value": 2 } ] } },
+                        { "caption": "Einheit", "name": "Unit", "width": "170px", "add": 0, "edit": { "type": "Select", "options": [
+                            { "caption": "automatisch (Profil)", "value": 0 }, { "caption": "W bzw. Wh", "value": 1 }, { "caption": "kW bzw. kWh", "value": 2 }, { "caption": "MW bzw. MWh", "value": 3 } ] } },
+                        { "caption": "Betriebsart", "name": "Mode", "width": "170px", "add": 0, "edit": { "type": "Select", "options": [
+                            { "caption": "Heizen", "value": 0 }, { "caption": "Kühlen", "value": 1 }, { "caption": "Heizen und Kühlen", "value": 2 } ] } }
+                    ]
+                },
+                { "type": "Label", "caption": "Tagesenergie = a + b · Heizgrad (+ c · Kühlgrad), Heizgrad = Heizgrenze − Tagesmittel. Braucht archivierte Außentemperatur und mindestens 10 Tage (Heizen und Kühlen: 20)." }
+            ]
+        },
+        {
+            "type": "ExpansionPanel", "caption": "🔌 Wallboxen", "expanded": false,
+            "items": [
+                { "type": "Label", "caption": "„steuerbar“: das EMS plant die Ladung, das Modul meldet nur den Bedarf (EPL_GetWallboxDemand). „sofort laden“: Ladevorgang beim Anstecken oder per Knopf, steht als feste Last in der Prognose." },
+                { "type": "Label", "caption": "SoC-Variable leer: Bedarf aus Akkugröße und angenommenem Start-SoC. Ladeleistung-Variable: wird von der Grundlast abgezogen (Messart wie oben)." },
+                {
+                    "type": "List", "name": "Wallboxes", "caption": "Wallboxen (Nummer = Zeile, ab 1)",
+                    "rowCount": 3, "add": true, "delete": true,
+                    "columns": [
+                        { "caption": "Bezeichnung", "name": "Name", "width": "150px", "add": "", "edit": { "type": "ValidationTextBox" } },
+                        { "caption": "Betriebsart", "name": "Mode", "width": "130px", "add": 0, "edit": { "type": "Select", "options": [
+                            { "caption": "steuerbar", "value": 0 }, { "caption": "sofort laden", "value": 1 } ] } },
+                        { "caption": "Ladeleistung (Variable)", "name": "PowerVar", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } },
+                        { "caption": "Messart", "name": "Type", "width": "150px", "add": 0, "edit": { "type": "Select", "options": [
+                            { "caption": "Leistung (W/kW)", "value": 0 }, { "caption": "Energie je Intervall (Wh/kWh)", "value": 1 }, { "caption": "Zählerstand (Wh/kWh)", "value": 2 } ] } },
+                        { "caption": "Einheit", "name": "Unit", "width": "130px", "add": 0, "edit": { "type": "Select", "options": [
+                            { "caption": "automatisch (Profil)", "value": 0 }, { "caption": "W bzw. Wh", "value": 1 }, { "caption": "kW bzw. kWh", "value": 2 }, { "caption": "MW bzw. MWh", "value": 3 } ] } },
+                        { "caption": "SoC (Variable)", "name": "SocVar", "width": "160px", "add": 0, "edit": { "type": "SelectVariable" } },
+                        { "caption": "angesteckt (Variable)", "name": "PlugVar", "width": "160px", "add": 0, "edit": { "type": "SelectVariable" } },
+                        { "caption": "Akku kWh", "name": "CapacityKwh", "width": "90px", "add": 60, "edit": { "type": "NumberSpinner", "minimum": 0, "digits": 1 } },
+                        { "caption": "Start-SoC %", "name": "StartSoc", "width": "100px", "add": 20, "edit": { "type": "NumberSpinner", "minimum": 0, "maximum": 100 } },
+                        { "caption": "Ziel-SoC %", "name": "TargetSoc", "width": "100px", "add": 100, "edit": { "type": "NumberSpinner", "minimum": 0, "maximum": 100 } },
+                        { "caption": "Ladeleistung kW", "name": "ChargeKw", "width": "120px", "add": 11, "edit": { "type": "NumberSpinner", "minimum": 0, "digits": 1 } },
+                        { "caption": "fertig bis", "name": "ReadyAt", "width": "90px", "add": "07:00", "edit": { "type": "ValidationTextBox", "validate": "^([01]?\\d|2[0-3]):[0-5]\\d$" } }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel", "caption": "📋 Erkannte Quellen", "expanded": false,
+            "items": [
+                { "type": "Label", "name": "InfoSources", "caption": "" }
+            ]
+        }
+    ],
+    "actions": [
+        { "type": "Label", "name": "InfoLast", "caption": "" },
+        {
+            "type": "RowLayout",
+            "items": [
+                { "type": "Button", "caption": "Jetzt neu berechnen", "onClick": "echo EPL_Rebuild($id);" },
+                { "type": "Button", "caption": "Tagesspeicher leeren (Historie neu einlesen)", "onClick": "echo EPL_ClearCache($id);" }
+            ]
+        },
+        {
+            "type": "RowLayout",
+            "items": [
+                { "type": "NumberSpinner", "name": "WallboxNumber", "caption": "Wallbox Nr.", "minimum": 1, "maximum": 20 },
+                { "type": "Button", "caption": "Sofort voll laden", "onClick": "echo EPL_ChargeNow($id, $WallboxNumber ?? 1);" },
+                { "type": "Button", "caption": "Laden beenden", "onClick": "echo EPL_StopCharge($id, $WallboxNumber ?? 1);" },
+                { "type": "Button", "caption": "Bedarf anzeigen", "onClick": "echo json_encode(EPL_GetWallboxDemand($id), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);" }
+            ]
+        }
+    ],
+    "status": [
+        { "code": 102, "icon": "active", "caption": "Aktiv" },
+        { "code": 104, "icon": "inactive", "caption": "Inaktiv" },
+        { "code": 201, "icon": "error", "caption": "Keine Verbrauchsquelle konfiguriert" },
+        { "code": 202, "icon": "error", "caption": "Kein Archiv gefunden" },
+        { "code": 203, "icon": "error", "caption": "Verbrauchsvariable fehlt oder ist nicht archiviert" }
+    ]
+}

@@ -1,0 +1,103 @@
+{
+    "$schema": "https://www.symcon.de/assets/files/validation/formSchema.json",
+    "elements": [
+        {
+            "type": "ExpansionPanel", "caption": "⚙️ Allgemein", "expanded": true,
+            "items": [
+                { "type": "CheckBox", "name": "Active", "caption": "Prognose aktiv" },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "IntervalHours", "caption": "Neu berechnen alle", "suffix": " h", "minimum": 1, "maximum": 24 },
+                        { "type": "Select", "name": "Resolution", "caption": "Auflösung", "options": [
+                            { "caption": "15 Minuten", "value": 15 }, { "caption": "30 Minuten", "value": 30 }, { "caption": "60 Minuten", "value": 60 } ] }
+                    ]
+                },
+                { "type": "Label", "caption": "Standort der Anlage (Wettervorhersage und Sonnenstand):" },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "Latitude", "caption": "Breitengrad", "digits": 4, "minimum": -90, "maximum": 90 },
+                        { "type": "NumberSpinner", "name": "Longitude", "caption": "Längengrad", "digits": 4, "minimum": -180, "maximum": 180 }
+                    ]
+                },
+                { "type": "Label", "name": "InfoLocation", "caption": "" }
+            ]
+        },
+        {
+            "type": "ExpansionPanel", "caption": "☀️ Anlage", "expanded": true,
+            "items": [
+                {
+                    "type": "List", "name": "Generators", "caption": "PV-Generatoren (je Dachfläche bzw. Ausrichtung eine Zeile)",
+                    "rowCount": 4, "add": true, "delete": true,
+                    "columns": [
+                        { "caption": "Bezeichnung", "name": "Name", "width": "auto", "add": "", "edit": { "type": "ValidationTextBox" } },
+                        { "caption": "Leistung kWp", "name": "Kwp", "width": "130px", "add": 5, "edit": { "type": "NumberSpinner", "minimum": 0, "digits": 2 } },
+                        { "caption": "Neigung °", "name": "Tilt", "width": "110px", "add": 30, "edit": { "type": "NumberSpinner", "minimum": 0, "maximum": 90 } },
+                        { "caption": "Ausrichtung ° (Kompass)", "name": "Azimuth", "width": "190px", "add": 180, "edit": { "type": "NumberSpinner", "minimum": 0, "maximum": 359 } }
+                    ]
+                },
+                { "type": "Label", "caption": "Ausrichtung als Kompassrichtung: 90 = Ost, 180 = Süd, 270 = West. Neigung 0 = waagrecht, 90 = senkrecht (Fassade)." },
+                { "type": "Label", "name": "InfoGenerators", "caption": "" },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "InverterKw", "caption": "Wechselrichter max. (0 = ohne Grenze)", "suffix": " kW", "digits": 1, "minimum": 0 },
+                        { "type": "NumberSpinner", "name": "Efficiency", "caption": "Systemwirkungsgrad (ohne Temperaturverlust)", "suffix": " %", "digits": 1, "minimum": 30, "maximum": 100 },
+                        { "type": "NumberSpinner", "name": "TempCoeff", "caption": "Temperaturkoeffizient", "suffix": " %/K", "digits": 2, "minimum": -1, "maximum": 0 }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel", "caption": "🎯 Messung und Kalibrierung", "expanded": false,
+            "items": [
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "SelectVariable", "name": "MeasVar", "caption": "Gemessene PV-Erzeugung (archiviert, optional)", "width": "360px" },
+                        { "type": "Select", "name": "MeasType", "caption": "Messart", "options": [
+                            { "caption": "Leistung (W/kW)", "value": 0 }, { "caption": "Energie je Intervall (Wh/kWh)", "value": 1 }, { "caption": "Zählerstand (Wh/kWh)", "value": 2 } ] },
+                        { "type": "Select", "name": "MeasUnit", "caption": "Einheit", "options": [
+                            { "caption": "automatisch (Profil)", "value": 0 }, { "caption": "W bzw. Wh", "value": 1 }, { "caption": "kW bzw. kWh", "value": 2 }, { "caption": "MW bzw. MWh", "value": 3 } ] }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "Select", "name": "EnergyInterval", "caption": "Intervall der Energiewerte", "options": [
+                            { "caption": "5 Minuten", "value": 5 }, { "caption": "10 Minuten", "value": 10 }, { "caption": "15 Minuten", "value": 15 },
+                            { "caption": "30 Minuten", "value": 30 }, { "caption": "60 Minuten", "value": 60 } ] },
+                        { "type": "CheckBox", "name": "StampIsEnd", "caption": "Zeitstempel markiert das Intervallende" }
+                    ]
+                },
+                { "type": "Label", "name": "InfoMeas", "caption": "" },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "CheckBox", "name": "Calibrate", "caption": "Korrekturfaktor aus der Messung lernen" },
+                        { "type": "NumberSpinner", "name": "CalibDays", "caption": "Lerntage", "suffix": " Tage", "minimum": 7, "maximum": 92 }
+                    ]
+                },
+                { "type": "Label", "caption": "Faktor = Median aus gemessener / berechneter Tagesenergie der Lerntage (Wetterdaten der Vortage von Open-Meteo), begrenzt auf 0,5 bis 1,5. Ab 14 Lerntagen kommt auch das Unsicherheitsband aus der Messung, vorher wird es aus der Bewölkung geschätzt. Der Betrag wird gewertet, negative Zählweise ist also egal." }
+            ]
+        }
+    ],
+    "actions": [
+        { "type": "Label", "name": "InfoLast", "caption": "" },
+        {
+            "type": "RowLayout",
+            "items": [
+                { "type": "Button", "caption": "Jetzt neu berechnen", "onClick": "echo EPV_Rebuild($id);" },
+                { "type": "Button", "caption": "Tagesspeicher leeren", "onClick": "echo EPV_ClearCache($id);" }
+            ]
+        }
+    ],
+    "status": [
+        { "code": 102, "icon": "active", "caption": "Aktiv" },
+        { "code": 104, "icon": "inactive", "caption": "Inaktiv" },
+        { "code": 201, "icon": "error", "caption": "Keine PV-Generatoren eingetragen" },
+        { "code": 203, "icon": "error", "caption": "Messvariable fehlt oder ist nicht archiviert" },
+        { "code": 204, "icon": "error", "caption": "Standort fehlt" }
+    ]
+}
