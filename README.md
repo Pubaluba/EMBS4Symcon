@@ -1,7 +1,7 @@
-# EnergiePrognose
+# EMBS4Symcon
 
-Symcon-Bibliothek für Energieprognosen als Grundlage für ein Energiemanagement, für Wohnhäuser und Gewerbe.
-Eigene Entwicklung, ohne Code aus anderen Prognose-Modulen.
+Symcon-Bibliothek von Benjamin Sommer: Energieprognosen als Grundlage für ein Energiemanagement (Wohnhaus und
+Gewerbe) und Hilfsmodule. Eigene Entwicklung, ohne Code aus anderen Prognose-Modulen.
 
 | Modul | Präfix | Inhalt |
 |---|---|---|
@@ -9,8 +9,10 @@ Eigene Entwicklung, ohne Code aus anderen Prognose-Modulen.
 | [Solarprognose](Solarprognose/README.md) | `EPV` | PV je Generator, Temperaturverlust, Wechselrichtergrenze, Kalibrierung aus der Messung |
 | [Windprognose](Windprognose/README.md) | `EPW` | Kleinwind: Nabenhöhe, Rotorfläche oder Kennlinie, Luftdichte, Böigkeit, Kalibrierung |
 | [BHKWPrognose](BHKWPrognose/README.md) | `EPB` | wärmegeführtes BHKW über die Außentemperatur, Stillstandstage |
+| [Jahresvariablen](Jahresvariablen/README.md) | `Jahresvariablen` | zwölf Monatswerte (Ganzzahl 0–100 %) |
+| [Jahresvariablen_Float](Jahresvariablen_Float/README.md) | `EMBSVARFloat` | zwölf Monatswerte (Kommazahl) |
 
-Alle Module liefern dasselbe Format (`GetForecast`: `p10`/`p50`/`p90`/`mean` in W je Slot, `kwh`, Vertrag 1.0;
+Die vier Prognosemodule liefern dasselbe Format (`GetForecast`: `p10`/`p50`/`p90`/`mean` in W je Slot, `kwh`, Vertrag 1.0;
 `GetEnergyWindow`: Energie im Zeitfenster). Ein EMS kann so Verbrauch und Erzeugung direkt gegeneinanderrechnen:
 
 ```php
@@ -20,7 +22,7 @@ $erzeugung = EPV_GetEnergyWindow(22222, $von, $bis)['kwh'] + EPW_GetEnergyWindow
            + EPB_GetEnergyWindow(44444, $von, $bis)['kwh'];
 ```
 
-Voraussetzung: Symcon ab 8.1. Einbinden über das **Module Control** mit der URL des Repositorys.
+Voraussetzung: Symcon ab 8.1 (gilt seit Version 1.1 für die ganze Bibliothek). Änderungen: [CHANGELOG.md](docs/CHANGELOG.md). Einbinden über das **Module Control** mit der URL des Repositorys.
 **Erst auf einer Test-Instanz ausprobieren.**
 
 ## Entwicklung
@@ -29,7 +31,7 @@ Das Repository beruht auf dem eigenen Starter-Repository (Regelwerk aus der ArpS
 
 | Pfad | Zweck |
 |---|---|
-| `Verbrauchsprognose/`, `Solarprognose/`, `Windprognose/`, `BHKWPrognose/` | Module (`module.php`, `form.json`, `module.json`, README) |
+| `Verbrauchsprognose/`, `Solarprognose/`, `Windprognose/`, `BHKWPrognose/`, `Jahresvariablen/`, `Jahresvariablen_Float/` | Module (`module.php`, `form.json`, `module.json`, README) |
 | `libs/` | Logik ohne Symcon-Abhängigkeit: `EPSeries` (Archivwerte → Viertelstundenprofil), `EPDayCache` (Tagesspeicher), `EPCalendar` (Feiertage, Tageslänge), `EPMath` (Quantile, Regression), `EPWallbox` (Ladeplanung), `EPSun` (Sonnenstand), `EPPV` (Modulebene, Temperatur), `EPWind` (Nabenhöhe, Dichte, Kennlinie), `EPOpenMeteo`, `EPDegreeDay` (Gradtag-Regression), `EPForecast` (Ausgabeformat, Kalibrierung). Traits: `EPHelper` (Laufzeitverzeichnis, Download, Fehler), `EPModuleCommon` (gemeinsame Modulteile der Erzeugungsprognosen) |
 | `tests/php/` | PHPUnit-Tests der `libs/` und Ende-zu-Ende-Test des Moduls mit nachgebildetem Symcon/Archiv (`tests/php/stubs/`) |
 | `tests/lint/` | Tests des Linters |

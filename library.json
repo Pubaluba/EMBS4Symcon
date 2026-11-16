@@ -1,12 +1,13 @@
 {
+    "$schema": "https://www.symcon.de/assets/files/validation/librarySchema.json",
     "id": "{EBB33F8E-94FF-71CE-2CB8-0E2231182000}",
-    "name": "EMBS4Symcon",
     "author": "Benjamin Sommer",
+    "name": "EMBS4Symcon",
     "url": "https://web.rw12.de",
     "compatibility": {
-        "version": "7.1"
+        "version": "8.1"
     },
-    "version": "1.0",
-    "build": 0,
-    "date": 0
+    "version": "1.1",
+    "build": 1,
+    "date": 1794863558
 }

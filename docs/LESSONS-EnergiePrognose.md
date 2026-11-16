@@ -51,3 +51,24 @@
   unabhängig von Prognosefehlern des Wetters. Nachteil: Der Faktor gleicht Anlage und Modell ab, nicht die
   Vorhersagegüte für morgen.
 - **Absicherung:** Ende-zu-Ende-Tests (Messung = 90 % bzw. 80 % des Modells → gelernter Faktor 0,90 bzw. 0,80).
+
+### E8 – Create() läuft auch beim Start von Symcon
+- **Symptom:** Jahresvariablen setzten ihre Standardwerte in `Create()`; eigene Monatswerte wären bei jedem Neustart
+  überschrieben worden.
+- **Ursache:** bestätigt laut Doku: `Create()` wird „beim Erstellen der Instanz und beim Start von IP-Symcon“ aufgerufen.
+- **Lösung:** Werte nur setzen, wenn die Variable neu ist (`IPS_GetObjectIDByIdent` vor dem Registrieren).
+- **Regel:** In `Create()` nur registrieren, keine Werte setzen – außer für neu angelegte Variablen.
+- **Absicherung:** Test `JahresvariablenTest::testDefaultsOnlyOnFirstCreate`.
+
+### E9 – Präfix nur aus Buchstaben und Ziffern
+- **Symptom:** Präfix `EMBS_VAR_Float` mit Unterstrichen.
+- **Ursache:** bestätigt laut Doku (module.json: „darf nur Zahlen und Buchstaben enthalten“).
+- **Lösung:** `EMBSVARFloat`, Skripte müssen angepasst werden (CHANGELOG). Bestehende Präfixe, die die Hausregel
+  (3–5 Großbuchstaben) verletzen, aber gültig sind, stehen in `LEGACY_PREFIXES` im Linter.
+- **Absicherung:** Lint-Regel L005.
+
+### E10 – EnableAction braucht RequestAction
+- **Symptom:** Variablen mit Aktion, aber ohne `RequestAction` im Modul.
+- **Ursache:** vermutet – ohne `RequestAction` kann Symcon die Bedienung aus der Visualisierung nicht ans Modul geben.
+- **Lösung:** `RequestAction` mit Prüfung des Idents.
+- **Absicherung:** Test `testRequestAction`; Lint-Regel noch offen.

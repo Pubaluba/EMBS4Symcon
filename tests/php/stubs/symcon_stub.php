@@ -11,6 +11,19 @@ if (!defined('VM_UPDATE')) {
     define('KR_READY', 10103);
 }
 
+if (!defined('VARIABLE_PRESENTATION_SLIDER')) {
+    define('VARIABLE_PRESENTATION_SLIDER', '{6B9CAEEC-5958-C223-30F7-BD36569FC57A}');
+}
+
+function IPS_GetObjectIDByIdent(string $ident, int $parent)
+{
+    if (isset(FakeSymcon::$idents[$parent][$ident])) {
+        return FakeSymcon::$idents[$parent][$ident];
+    }
+    trigger_error('Objekt mit Ident ' . $ident . ' nicht gefunden', E_USER_WARNING);
+    return false;
+}
+
 function IPS_GetKernelRunlevel(): int
 {
     return FakeSymcon::$runlevel;
@@ -26,6 +39,8 @@ final class FakeSymcon
     public static $profiles = [];
     public static $calls = 0;
     public static $runlevel = 10103;
+    /** @var array<int, array<string, int>> Instanz => Ident => Objekt-ID */
+    public static $idents = [];
     private static $cum = [];
 
     public static function reset(string $kernelDir): void
@@ -36,6 +51,7 @@ final class FakeSymcon
         self::$calls = 0;
         self::$cum = [];
         self::$runlevel = 10103;
+        self::$idents = [];
     }
 
     /**
@@ -243,9 +259,21 @@ abstract class IPSModuleStrict
         }
         $this->timers[$n] = $ms;
     }
-    protected function RegisterVariableString(string $i, string $n, string $p = '', int $pos = 0): bool { $this->values[$i] = $this->values[$i] ?? ''; return true; }
-    protected function RegisterVariableFloat(string $i, string $n, string $p = '', int $pos = 0): bool { $this->values[$i] = $this->values[$i] ?? 0.0; return true; }
-    protected function RegisterVariableInteger(string $i, string $n, string $p = '', int $pos = 0): bool { $this->values[$i] = $this->values[$i] ?? 0; return true; }
+    public $actions = [];
+
+    private function registerIdent(string $i): void
+    {
+        FakeSymcon::$idents[$this->InstanceID][$i] = FakeSymcon::$idents[$this->InstanceID][$i] ?? (90000 + count(FakeSymcon::$idents, COUNT_RECURSIVE));
+    }
+
+    // Profil-Argument wie in Symcon 8: Profilname oder Darstellungs-Array
+    protected function RegisterVariableString(string $i, string $n, $p = '', int $pos = 0): bool { $this->registerIdent($i); $this->values[$i] = $this->values[$i] ?? ''; return true; }
+    protected function RegisterVariableFloat(string $i, string $n, $p = '', int $pos = 0): bool { $this->registerIdent($i); $this->values[$i] = $this->values[$i] ?? 0.0; return true; }
+    protected function RegisterVariableInteger(string $i, string $n, $p = '', int $pos = 0): bool { $this->registerIdent($i); $this->values[$i] = $this->values[$i] ?? 0; return true; }
+    protected function EnableAction(string $i): bool { $this->actions[$i] = true; return true; }
+    public function Destroy(): void
+    {
+    }
     protected function GetValue(string $ident) { return $this->values[$ident]; }
     protected function SetValue(string $ident, $v): bool
     {

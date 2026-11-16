@@ -1,89 +1,90 @@
 <?php
 
-declare(strict_types=1);
-	class Jahresvariablen extends IPSModule
-	{
-		public function Create()
-		{
-			//Never delete this line!
-			parent::Create();
-			// 12 Variablen registrieren (Index 1 bis 12)
-            $this->RegisterVariableInteger("Value_1", "Januar" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 1);
-			$this->RegisterVariableInteger("Value_2", "Februar" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 2);
-			$this->RegisterVariableInteger("Value_3", "März" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 3);
-			$this->RegisterVariableInteger("Value_4", "April" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 4);
-			$this->RegisterVariableInteger("Value_5", "Mai" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 5);
-			$this->RegisterVariableInteger("Value_6", "Juni" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 6);
-			$this->RegisterVariableInteger("Value_7", "Juli" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 7);
-			$this->RegisterVariableInteger("Value_8", "August" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 8);
-			$this->RegisterVariableInteger("Value_9", "September" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 9);
-			$this->RegisterVariableInteger("Value_10", "Oktober" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 10);
-			$this->RegisterVariableInteger("Value_11", "November" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 11);
-			$this->RegisterVariableInteger("Value_12", "Dezember" , ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,    'PROFILE' => '~Batterie.100',], 12);
-			$this->EnableAction("Value_1");
-			$this->EnableAction("Value_2");
-			$this->EnableAction("Value_3");
-			$this->EnableAction("Value_4");
-			$this->EnableAction("Value_5");
-			$this->EnableAction("Value_6");
-			$this->EnableAction("Value_7");
-			$this->EnableAction("Value_8");
-			$this->EnableAction("Value_9");
-			$this->EnableAction("Value_10");
-			$this->EnableAction("Value_11");
-			$this->EnableAction("Value_12");
-			$this->setvalue("Value_1",85);
-			$this->setvalue("Value_2",75);
-			$this->setvalue("Value_3",60);
-			$this->setvalue("Value_4",15);
-			$this->setvalue("Value_5",10);
-			$this->setvalue("Value_6",10);
-			$this->setvalue("Value_7",10);
-			$this->setvalue("Value_8",10);
-			$this->setvalue("Value_9",15);
-			$this->setvalue("Value_10",60);
-			$this->setvalue("Value_11",75);
-			$this->setvalue("Value_12",85);
-		}			
+// Bewusst KEIN declare(strict_types=1) (docs/RULES.md, P001).
 
-		public function Destroy()
-		{
-			//Never delete this line!
-			parent::Destroy();
-		}
+/**
+ * Zwölf Monatswerte (Ganzzahl, 0–100 %) als Variablen, z. B. für monatsabhängige Sollwerte.
+ * Zugriff per Jahresvariablen_Get($id, $Monat) / Jahresvariablen_Set($id, $Monat, $Wert) oder über die Visualisierung.
+ */
+class Jahresvariablen extends IPSModuleStrict
+{
+    private const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    private const DEFAULTS = [85, 75, 60, 15, 10, 10, 10, 10, 15, 60, 75, 85];
 
-		public function ApplyChanges()
-		{
-			//Never delete this line!
-			parent::ApplyChanges();
-		}
-		
-		public function Get(int $Index)
-   	 	{
-    	    if ($Index < 1 || $Index > 12) {
-            	trigger_error("Index liegt außerhalb des gültigen Bereichs (1 - 12)", E_USER_WARNING);
-            	return null;
-        		}
+    public function Create(): void
+    {
+        //Never delete this line!
+        parent::Create();
 
-        	return $this->GetValue("Value_" . $Index);
-	    }
-		
-		public function Set(int $Index, $Value)
-    	{
-        	if ($Index < 1 || $Index > 12) {
-            	trigger_error("Index liegt außerhalb des gültigen Bereichs (1 - 12)", E_USER_WARNING);
-            	return false;
-        		}
+        // Create() läuft auch bei jedem Start von Symcon: Standardwerte nur setzen, wenn die Variablen neu sind,
+        // sonst würden selbst eingestellte Monatswerte bei jedem Neustart überschrieben.
+        $isNew = @IPS_GetObjectIDByIdent('Value_1', $this->InstanceID) === false;
+        foreach (self::MONTHS as $i => $name) {
+            $ident = 'Value_' . ($i + 1);
+            $this->RegisterVariableInteger($ident, $name, ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER, 'PROFILE' => '~Batterie.100'], $i + 1);
+            $this->EnableAction($ident);
+            if ($isNew) {
+                $this->SetValue($ident, self::DEFAULTS[$i]);
+            }
+        }
+    }
 
-        	$this->SetValue("Value_" . $Index, $Value);
-        	return true;
-   		 }
-	
-		public function Setbyident(string $Ident, int $Value)
-    	{
-        	
-        	$this->SetValue($Ident, $Value);
-        	return true;
-   		 }
-		
+    public function Destroy(): void
+    {
+        //Never delete this line!
+        parent::Destroy();
+    }
+
+    public function ApplyChanges(): void
+    {
+        //Never delete this line!
+        parent::ApplyChanges();
+    }
+
+    /** Bedienung in der Visualisierung (wird durch EnableAction aufgerufen). */
+    public function RequestAction(string $Ident, mixed $Value): void
+    {
+        if (!$this->isMonthIdent($Ident)) {
+            throw new Exception('Unbekannter Ident: ' . $Ident);
+        }
+        $this->SetValue($Ident, (int)$Value);
+    }
+
+    /** Wert eines Monats (1 = Januar … 12 = Dezember), null bei ungültigem Index. */
+    public function Get(int $Index): ?int
+    {
+        if ($Index < 1 || $Index > 12) {
+            trigger_error('Index liegt außerhalb des gültigen Bereichs (1 - 12)', E_USER_WARNING);
+            return null;
+        }
+        return (int)$this->GetValue('Value_' . $Index);
+    }
+
+    public function Set(int $Index, int $Value): bool
+    {
+        if ($Index < 1 || $Index > 12) {
+            trigger_error('Index liegt außerhalb des gültigen Bereichs (1 - 12)', E_USER_WARNING);
+            return false;
+        }
+        $this->SetValue('Value_' . $Index, $Value);
+        $this->SendDebug('Set', 'Value_' . $Index . ' = ' . $Value, 0);
+        return true;
+    }
+
+    /** Wert per Ident setzen (Value_1 … Value_12). */
+    public function Setbyident(string $Ident, int $Value): bool
+    {
+        if (!$this->isMonthIdent($Ident)) {
+            trigger_error('Unbekannter Ident: ' . $Ident . ' (erlaubt: Value_1 bis Value_12)', E_USER_WARNING);
+            return false;
+        }
+        $this->SetValue($Ident, $Value);
+        $this->SendDebug('Setbyident', $Ident . ' = ' . $Value, 0);
+        return true;
+    }
+
+    private function isMonthIdent(string $ident): bool
+    {
+        return (bool)preg_match('/^Value_([1-9]|1[0-2])$/', $ident);
+    }
 }

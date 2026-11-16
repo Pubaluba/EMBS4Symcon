@@ -36,6 +36,10 @@ SUPPRESS_RE = re.compile(r"lint-ok:\s*([A-Z]\d{3})\s+\S")
 
 # Ordner im Wurzelverzeichnis, die ohne module.json erlaubt sind (Doku: Structure).
 ALLOWED_ROOT_DIRS = {"libs", "docs", "imgs", "tests", "actions"}
+# Praefixe bestehender Module, die schon von Skripten genutzt werden: Umbenennen braeche diese Skripte,
+# deshalb gilt die Hausregel (3-5 Grossbuchstaben) fuer sie nicht. Nur fuer Bestand, nie fuer neue Module.
+LEGACY_PREFIXES = {"Jahresvariablen", "EMBSVARFloat"}
+
 # Lokale Ordner, die nicht ins Repository gehoeren (.gitignore) und hier ignoriert werden.
 LOCAL_IGNORED = {"vendor", "dist", "node_modules", "__pycache__"}
 
@@ -293,7 +297,7 @@ class Linter:
                     self.add(mj_path, 1, ERROR, "L005", "prefix darf nur Buchstaben und Ziffern enthalten")
                 else:
                     info["prefix"] = prefix
-                    if not re.fullmatch(r"[A-Z]{3,5}", prefix):
+                    if not re.fullmatch(r"[A-Z]{3,5}", prefix) and prefix not in LEGACY_PREFIXES:
                         self.add(mj_path, 1, WARN, "L005", "Hausregel: prefix besteht aus 3-5 Grossbuchstaben")
                     if prefix in self.prefixes:
                         self.add(mj_path, 1, ERROR, "L005", f"prefix '{prefix}' doppelt ({self.prefixes[prefix]})")
