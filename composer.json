@@ -1,0 +1,11 @@
+{
+    "name": "energieprognose/symcon",
+    "description": "EnergiePrognose fuer Symcon (Entwicklungsabhaengigkeiten)",
+    "type": "project",
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    },
+    "scripts": {
+        "test": "phpunit"
+    }
+}
