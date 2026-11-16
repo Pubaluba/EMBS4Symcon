@@ -135,6 +135,13 @@ namespace PHPUnit\Framework {
                 }
             }
 
+            public function assertStringNotContainsString(string $needle, string $hay, string $msg = ''): void
+            {
+                if (strpos($hay, $needle) !== false) {
+                    $this->fail(trim($msg . " Text enthält unerwartet '$needle'"));
+                }
+            }
+
             public function assertArrayHasKey($key, array $arr, string $msg = ''): void
             {
                 if (!array_key_exists($key, $arr)) {

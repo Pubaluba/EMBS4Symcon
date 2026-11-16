@@ -9,6 +9,7 @@ Gewerbe) und Hilfsmodule. Eigene Entwicklung, ohne Code aus anderen Prognose-Mod
 | [Solarprognose](Solarprognose/README.md) | `EPV` | PV je Generator, Temperaturverlust, Wechselrichtergrenze, Kalibrierung aus der Messung |
 | [Windprognose](Windprognose/README.md) | `EPW` | Kleinwind: Nabenhöhe, Rotorfläche oder Kennlinie, Luftdichte, Böigkeit, Kalibrierung |
 | [BHKWPrognose](BHKWPrognose/README.md) | `EPB` | wärmegeführtes BHKW über die Außentemperatur, Stillstandstage |
+| [Energiekachel](Energiekachel/README.md) | `EPK` | Kachel: Prognosen farbig, Strompreise, Zukaufplan, Fahrpläne (Anforderung, Normalbetrieb, Sperre) |
 | [Jahresvariablen](Jahresvariablen/README.md) | `Jahresvariablen` | zwölf Monatswerte (Ganzzahl 0–100 %) |
 | [Jahresvariablen_Float](Jahresvariablen_Float/README.md) | `EMBSVARFloat` | zwölf Monatswerte (Kommazahl) |
 
@@ -31,8 +32,8 @@ Das Repository beruht auf dem eigenen Starter-Repository (Regelwerk aus der ArpS
 
 | Pfad | Zweck |
 |---|---|
-| `Verbrauchsprognose/`, `Solarprognose/`, `Windprognose/`, `BHKWPrognose/`, `Jahresvariablen/`, `Jahresvariablen_Float/` | Module (`module.php`, `form.json`, `module.json`, README) |
-| `libs/` | Logik ohne Symcon-Abhängigkeit: `EPSeries` (Archivwerte → Viertelstundenprofil), `EPDayCache` (Tagesspeicher), `EPCalendar` (Feiertage, Tageslänge), `EPMath` (Quantile, Regression), `EPWallbox` (Ladeplanung), `EPSun` (Sonnenstand), `EPPV` (Modulebene, Temperatur), `EPWind` (Nabenhöhe, Dichte, Kennlinie), `EPOpenMeteo`, `EPDegreeDay` (Gradtag-Regression), `EPForecast` (Ausgabeformat, Kalibrierung). Traits: `EPHelper` (Laufzeitverzeichnis, Download, Fehler), `EPModuleCommon` (gemeinsame Modulteile der Erzeugungsprognosen) |
+| `Verbrauchsprognose/`, `Solarprognose/`, `Windprognose/`, `BHKWPrognose/`, `Energiekachel/` (mit `module.html`), `Jahresvariablen/`, `Jahresvariablen_Float/` | Module (`module.php`, `form.json`, `module.json`, README) |
+| `libs/` | Logik ohne Symcon-Abhängigkeit: `EPSeries` (Archivwerte → Viertelstundenprofil), `EPDayCache` (Tagesspeicher), `EPCalendar` (Feiertage, Tageslänge), `EPMath` (Quantile, Regression), `EPWallbox` (Ladeplanung), `EPSun` (Sonnenstand), `EPPV` (Modulebene, Temperatur), `EPWind` (Nabenhöhe, Dichte, Kennlinie), `EPOpenMeteo`, `EPDegreeDay` (Gradtag-Regression), `EPForecast` (Ausgabeformat, Kalibrierung), `EPSchedule` (Fahrpläne, Preise, Zukauf). Traits: `EPHelper` (Laufzeitverzeichnis, Download, Fehler), `EPModuleCommon` (gemeinsame Modulteile der Erzeugungsprognosen) |
 | `tests/php/` | PHPUnit-Tests der `libs/` und Ende-zu-Ende-Test des Moduls mit nachgebildetem Symcon/Archiv (`tests/php/stubs/`) |
 | `tests/lint/` | Tests des Linters |
 | `.dev/symcon_lint.py` | Statische Prüfungen |

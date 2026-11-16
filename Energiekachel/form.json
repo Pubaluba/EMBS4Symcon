@@ -1,0 +1,132 @@
+{
+    "$schema": "https://www.symcon.de/assets/files/validation/formSchema.json",
+    "elements": [
+        {
+            "type": "ExpansionPanel", "caption": "📈 Prognosen", "expanded": true,
+            "items": [
+                { "type": "Label", "caption": "Leer lassen = erste vorhandene Instanz des jeweiligen Moduls wird automatisch genutzt." },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "SelectInstance", "name": "ConsumptionID", "caption": "Verbrauchsprognose" },
+                        { "type": "SelectInstance", "name": "SolarID", "caption": "Solarprognose" }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "SelectInstance", "name": "WindID", "caption": "Windprognose" },
+                        { "type": "SelectInstance", "name": "BHKWID", "caption": "BHKW-Prognose" }
+                    ]
+                },
+                { "type": "Label", "name": "InfoSources", "caption": "" }
+            ]
+        },
+        {
+            "type": "ExpansionPanel", "caption": "🖼️ Darstellung", "expanded": false,
+            "items": [
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "CheckBox", "name": "ShowBand", "caption": "Unsicherheitsband (P10–P90) zeigen" },
+                        { "type": "CheckBox", "name": "ShowNet", "caption": "Saldo (Erzeugung − Verbrauch) als Linie" }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "Select", "name": "DefaultDay", "caption": "Startansicht", "options": [
+                            { "caption": "Heute", "value": 0 }, { "caption": "Morgen", "value": 1 }, { "caption": "Übermorgen", "value": 2 } ] },
+                        { "type": "NumberSpinner", "name": "ChartHeight", "caption": "Höhe des Diagramms", "suffix": " px", "minimum": 120, "maximum": 800 },
+                        { "type": "NumberSpinner", "name": "UpdateMinutes", "caption": "Aktualisieren alle", "suffix": " min", "minimum": 1, "maximum": 60 }
+                    ]
+                },
+                { "type": "CheckBox", "name": "HtmlBox", "caption": "Zusätzlich als HTML-Box-Variable (für das ältere WebFront)" }
+            ]
+        },
+        {
+            "type": "ExpansionPanel", "caption": "🎨 Farben", "expanded": false,
+            "items": [
+                { "type": "Label", "caption": "Erzeugung (nach oben)" },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "SelectColor", "name": "ColorPV", "caption": "PV" },
+                        { "type": "SelectColor", "name": "ColorWind", "caption": "Wind" },
+                        { "type": "SelectColor", "name": "ColorBHKW", "caption": "BHKW" },
+                        { "type": "SelectColor", "name": "ColorBandGen", "caption": "Band Erzeugung" }
+                    ]
+                },
+                { "type": "Label", "caption": "Verbrauch (nach unten)" },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "SelectColor", "name": "ColorBase", "caption": "Grundlast" },
+                        { "type": "SelectColor", "name": "ColorHeat", "caption": "Wärmepumpe/Klima" },
+                        { "type": "SelectColor", "name": "ColorWallbox", "caption": "Wallbox" },
+                        { "type": "SelectColor", "name": "ColorBandCons", "caption": "Band Verbrauch" },
+                        { "type": "SelectColor", "name": "ColorNet", "caption": "Saldo" }
+                    ]
+                },
+                { "type": "Label", "caption": "Fahrpläne und Preise" },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "SelectColor", "name": "ColorRequest", "caption": "Anforderung" },
+                        { "type": "SelectColor", "name": "ColorNormal", "caption": "Normalbetrieb" },
+                        { "type": "SelectColor", "name": "ColorLock", "caption": "Sperre" },
+                        { "type": "SelectColor", "name": "ColorPurchase", "caption": "Zukauf" },
+                        { "type": "SelectColor", "name": "ColorCheap", "caption": "Preis günstig" },
+                        { "type": "SelectColor", "name": "ColorExpensive", "caption": "Preis teuer" }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel", "caption": "🗓️ Fahrpläne", "expanded": false,
+            "items": [
+                {
+                    "type": "List", "name": "ScheduleVars", "caption": "Fahrpläne aus String-Variablen (JSON)",
+                    "rowCount": 4, "add": true, "delete": true,
+                    "columns": [
+                        { "caption": "Bezeichnung in der Kachel", "name": "Name", "width": "260px", "add": "", "edit": { "type": "ValidationTextBox" } },
+                        { "caption": "Variable (String mit JSON)", "name": "VariableID", "width": "auto", "add": 0, "edit": { "type": "SelectVariable" } }
+                    ]
+                },
+                { "type": "Label", "caption": "Format je Eintrag: {\"from\": Unix-Zeit, \"to\": Unix-Zeit, \"type\": \"request\" | \"normal\" | \"lock\", \"label\": \"Text\", \"kw\": 3.5}. Statt Unix-Zeit geht auch ISO-Text; type auch „Anforderung“, „Normal“, „Sperre“." },
+                { "type": "Label", "caption": "Alternativ aus einem Skript oder EMS: EPK_SetSchedule($id, 'wp', 'Wärmepumpe', $json); entfernen mit EPK_RemoveSchedule($id, 'wp')." }
+            ]
+        },
+        {
+            "type": "ExpansionPanel", "caption": "💶 Preise und Zukauf", "expanded": false,
+            "items": [
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "SelectVariable", "name": "PriceVar", "caption": "Strompreise (String-Variable mit JSON, optional)", "width": "360px" },
+                        { "type": "Select", "name": "PriceUnit", "caption": "Einheit der Preise", "options": [
+                            { "caption": "automatisch", "value": 0 }, { "caption": "ct/kWh", "value": 1 }, { "caption": "€/kWh", "value": 2 }, { "caption": "€/MWh (Börse)", "value": 3 } ] }
+                    ]
+                },
+                { "type": "Label", "caption": "Erkannt werden u. a. die Form von Tibber ({\"today\": […], \"tomorrow\": […]} mit total/startsAt), aWATTar ({\"data\": […]} mit marketprice) und eigene Listen mit from/to/price. Alternativ: EPK_SetPrices($id, $json)." },
+                { "type": "NumberSpinner", "name": "CheapHours", "caption": "Günstigste Abschnitte je Tag markieren (0 = aus)", "minimum": 0, "maximum": 24 },
+                { "type": "SelectVariable", "name": "PurchaseVar", "caption": "Zukaufplan (String-Variable mit JSON, optional)", "width": "360px" },
+                { "type": "Label", "caption": "Zukaufplan: Liste mit from, to, kw bzw. kwh, label – z. B. vom EMS geplanter Netzbezug zu günstigen Preisen. Alternativ: EPK_SetPurchasePlan($id, $json)." }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "type": "RowLayout",
+            "items": [
+                { "type": "Button", "caption": "Kachel aktualisieren", "onClick": "EPK_Update($id); echo 'Aktualisiert.';" },
+                { "type": "Button", "caption": "Beispieldaten einspielen", "onClick": "echo EPK_LoadDemo($id);" },
+                { "type": "Button", "caption": "Gesetzte Daten löschen", "onClick": "echo EPK_ClearPushed($id);" }
+            ]
+        }
+    ],
+    "status": [
+        { "code": 102, "icon": "active", "caption": "Aktiv" },
+        { "code": 201, "icon": "inactive", "caption": "Noch keine Prognose-Instanz und kein Fahrplan" }
+    ]
+}

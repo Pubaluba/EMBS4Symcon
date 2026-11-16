@@ -1,0 +1,15 @@
+{
+    "$schema": "https://www.symcon.de/assets/files/validation/moduleSchema.json",
+    "id": "{1D21F412-A5FB-44F0-B162-A49E1AD1B060}",
+    "name": "Energiekachel",
+    "type": 3,
+    "vendor": "",
+    "aliases": [
+        "Energie-Kachel (Prognosen und Fahrpläne)"
+    ],
+    "url": "",
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "EPK"
+}

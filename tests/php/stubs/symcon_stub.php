@@ -41,6 +41,8 @@ final class FakeSymcon
     public static $runlevel = 10103;
     /** @var array<int, array<string, int>> Instanz => Ident => Objekt-ID */
     public static $idents = [];
+    /** @var array<string, int[]> Modul-GUID => Instanzen */
+    public static $instances = [];
     private static $cum = [];
 
     public static function reset(string $kernelDir): void
@@ -52,6 +54,7 @@ final class FakeSymcon
         self::$cum = [];
         self::$runlevel = 10103;
         self::$idents = [];
+        self::$instances = [];
     }
 
     /**
@@ -90,7 +93,20 @@ final class FakeSymcon
 
 function IPS_GetInstanceListByModuleID(string $guid): array
 {
-    return $guid === '{43192F0B-135B-4CE7-A0A7-1475603F3060}' ? [FakeSymcon::ARCHIVE] : [];
+    if ($guid === '{43192F0B-135B-4CE7-A0A7-1475603F3060}') {
+        return [FakeSymcon::ARCHIVE];
+    }
+    return FakeSymcon::$instances[$guid] ?? [];
+}
+
+function IPS_InstanceExists(int $id): bool
+{
+    foreach (FakeSymcon::$instances as $ids) {
+        if (in_array($id, $ids, true)) {
+            return true;
+        }
+    }
+    return $id === FakeSymcon::ARCHIVE;
 }
 
 function IPS_VariableExists(int $id): bool
@@ -271,6 +287,11 @@ abstract class IPSModuleStrict
     protected function RegisterVariableFloat(string $i, string $n, $p = '', int $pos = 0): bool { $this->registerIdent($i); $this->values[$i] = $this->values[$i] ?? 0.0; return true; }
     protected function RegisterVariableInteger(string $i, string $n, $p = '', int $pos = 0): bool { $this->registerIdent($i); $this->values[$i] = $this->values[$i] ?? 0; return true; }
     protected function EnableAction(string $i): bool { $this->actions[$i] = true; return true; }
+    public $visuType = 0;
+    public $visuMessages = [];
+    protected function SetVisualizationType(int $t): void { $this->visuType = $t; }
+    protected function UpdateVisualizationValue($d): bool { $this->visuMessages[] = $d; return true; }
+    protected function GetIDForIdent(string $i): int { return FakeSymcon::$idents[$this->InstanceID][$i] ?? 0; }
     public function Destroy(): void
     {
     }

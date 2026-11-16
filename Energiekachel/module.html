@@ -1,0 +1,294 @@
+<div id="epk">
+    <div class="epk-head">
+        <div class="epk-tabs" id="epk-tabs"></div>
+        <div class="epk-sum" id="epk-sum"></div>
+    </div>
+    <div class="epk-legend" id="epk-legend"></div>
+    <div class="epk-plot" id="epk-plot">
+        <svg id="epk-chart" xmlns="http://www.w3.org/2000/svg"></svg>
+        <svg id="epk-rows" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="epk-tip" id="epk-tip"></div>
+    </div>
+    <div class="epk-empty" id="epk-empty"></div>
+</div>
+<style>
+    #epk { --epk-text: #1f2328; --epk-muted: rgba(31, 35, 40, .55); --epk-grid: rgba(31, 35, 40, .12); --epk-tipbg: rgba(255, 255, 255, .97);
+           font: 12px/1.35 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--epk-text);
+           box-sizing: border-box; width: 100%; height: 100%; padding: 6px 8px; overflow: auto; }
+    @media (prefers-color-scheme: dark) {
+        #epk { --epk-text: #e6e6e6; --epk-muted: rgba(230, 230, 230, .6); --epk-grid: rgba(230, 230, 230, .14); --epk-tipbg: rgba(30, 32, 36, .97); }
+    }
+    #epk * { box-sizing: border-box; }
+    .epk-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+    .epk-tabs button { font: inherit; color: inherit; background: transparent; border: 1px solid var(--epk-grid); border-radius: 4px;
+                       padding: 3px 10px; margin-right: 4px; cursor: pointer; }
+    .epk-tabs button.on { border-color: currentColor; font-weight: 600; }
+    .epk-sum { color: var(--epk-muted); }
+    .epk-sum b { color: var(--epk-text); font-weight: 600; }
+    .epk-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 2px; }
+    .epk-legend span { cursor: pointer; user-select: none; white-space: nowrap; }
+    .epk-legend span.off { opacity: .35; text-decoration: line-through; }
+    .epk-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+    .epk-plot { position: relative; }
+    .epk-plot svg { display: block; width: 100%; overflow: visible; }
+    .epk-plot text { fill: var(--epk-muted); font-size: 10px; }
+    .epk-tip { position: absolute; pointer-events: none; display: none; background: var(--epk-tipbg); border: 1px solid var(--epk-grid);
+               border-radius: 4px; padding: 5px 7px; white-space: nowrap; z-index: 2; box-shadow: 0 2px 6px rgba(0, 0, 0, .15); }
+    .epk-tip i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+    .epk-empty { color: var(--epk-muted); padding: 12px 0; }
+</style>
+<script>
+    var EPK = { data: null, day: null, hidden: {}, geo: null };
+    var NS = 'http://www.w3.org/2000/svg';
+    var TYPES = { request: 'Anforderung', normal: 'Normalbetrieb', lock: 'Sperre', purchase: 'Zukauf' };
+
+    function handleMessage(d) {
+        try { if (typeof d === 'string') { d = JSON.parse(d); } } catch (e) { return; }
+        if (!d || !d.days) { return; }
+        EPK.data = d;
+        if (EPK.day === null) { EPK.day = d.opts.day || 0; }
+        epkRender();
+    }
+
+    function el(tag, attrs, parent) {
+        var e = document.createElementNS(NS, tag);
+        for (var k in attrs) { e.setAttribute(k, attrs[k]); }
+        if (parent) { parent.appendChild(e); }
+        return e;
+    }
+    function fmt(v, d) { return (Math.round(v * Math.pow(10, d)) / Math.pow(10, d)).toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+    function hhmm(t) { var x = new Date(t * 1000); return ('0' + x.getHours()).slice(-2) + ':' + ('0' + x.getMinutes()).slice(-2); }
+    function sumArr(a, b) { var o = []; for (var i = 0; i < 96; i++) { o.push((a ? a[i] || 0 : 0) + (b ? b[i] || 0 : 0)); } return o; }
+    function zero() { var o = []; for (var i = 0; i < 96; i++) { o.push(0); } return o; }
+    function hsl(hex) {
+        var n = parseInt(hex.slice(1), 16), r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+        var mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, h = 0, s = 0, dd = mx - mn;
+        if (dd) {
+            s = l > 0.5 ? dd / (2 - mx - mn) : dd / (mx + mn);
+            h = mx === r ? (g - b) / dd + (g < b ? 6 : 0) : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4;
+            h *= 60;
+        }
+        return [h, s, l];
+    }
+    /** Zwischenfarbe über den Farbton (grün → gelb → rot statt Braun); liefert [CSS-Farbe, helle Fläche?]. */
+    function mix(c1, c2, f) {
+        var a = hsl(c1), b = hsl(c2), dh = b[0] - a[0];
+        if (dh > 180) { dh -= 360; } else if (dh < -180) { dh += 360; }
+        var h = (a[0] + dh * f + 360) % 360, s = a[1] + (b[1] - a[1]) * f, l = a[2] + (b[2] - a[2]) * f;
+        // Wahrgenommene Helligkeit grob über den Farbton (Gelb/Grün hell, Rot/Blau dunkel)
+        var light = l > 0.62 || (h > 40 && h < 190 && l > 0.38);
+        return ['hsl(' + Math.round(h) + ',' + Math.round(s * 100) + '%,' + Math.round(l * 100) + '%)', light];
+    }
+
+    /** Ebenen (Erzeugung nach oben, Verbrauch nach unten) für den gewählten Tag. */
+    function layers(day) {
+        var c = EPK.data.colors, s = day.series, L = [];
+        var add = function (key, name, color, vals, dir) { if (vals) { L.push({ key: key, name: name, color: color, vals: vals, dir: dir }); } };
+        if (s.pv) { add('pv', 'PV', c.pv, s.pv.mean, 1); }
+        if (s.wind) { add('wind', 'Wind', c.wind, s.wind.mean, 1); }
+        if (s.bhkw) { add('bhkw', 'BHKW', c.bhkw, s.bhkw.mean, 1); }
+        if (s.cons) {
+            add('base', 'Grundlast', c.base, s.cons.base, -1);
+            if (s.cons.hasHeat) { add('heat', 'Wärmepumpe/Klima', c.heat, s.cons.heat, -1); }
+            if (s.cons.hasWallbox) { add('wb', 'Wallbox', c.wallbox, s.cons.wallbox, -1); }
+        }
+        return L;
+    }
+
+    function epkRender() {
+        var d = EPK.data; if (!d) { return; }
+        var day = d.days[EPK.day] || d.days[0];
+        var tabs = document.getElementById('epk-tabs'); tabs.innerHTML = '';
+        d.days.forEach(function (x, i) {
+            var b = document.createElement('button'); b.textContent = x.label; if (i === EPK.day) { b.className = 'on'; }
+            b.onclick = function () { EPK.day = i; epkRender(); }; tabs.appendChild(b);
+        });
+        var L = layers(day), vis = L.filter(function (l) { return !EPK.hidden[l.key]; });
+        // Legende
+        var lg = document.getElementById('epk-legend'); lg.innerHTML = '';
+        var legendItems = L.map(function (l) { return { key: l.key, name: l.name, color: l.color }; });
+        if (d.opts.net && L.length) { legendItems.push({ key: 'net', name: 'Saldo', color: d.colors.net }); }
+        legendItems.forEach(function (it) {
+            var sp = document.createElement('span'), ic = document.createElement('i'); ic.style.background = it.color;
+            sp.appendChild(ic); sp.appendChild(document.createTextNode(it.name)); if (EPK.hidden[it.key]) { sp.className = 'off'; }
+            sp.onclick = function () { EPK.hidden[it.key] = !EPK.hidden[it.key]; epkRender(); }; lg.appendChild(sp);
+        });
+        // Summen
+        var gen = zero(), cons = zero();
+        L.forEach(function (l) { var t = l.dir > 0 ? gen : cons; for (var i = 0; i < 96; i++) { t[i] += l.vals[i] || 0; } });
+        var kGen = 0, kCons = 0, kSelf = 0;
+        for (var i = 0; i < 96; i++) { kGen += gen[i] / 4000; kCons += cons[i] / 4000; kSelf += Math.min(gen[i], cons[i]) / 4000; }
+        var sum = document.getElementById('epk-sum'); sum.innerHTML = '';
+        var parts = [];
+        if (day.series.cons) { parts.push(['Verbrauch', fmt(kCons, 1) + ' kWh']); }
+        if (day.series.pv || day.series.wind || day.series.bhkw) { parts.push(['Erzeugung', fmt(kGen, 1) + ' kWh']); }
+        if (parts.length === 2) { parts.push(['Saldo', fmt(kGen - kCons, 1) + ' kWh']); parts.push(['Eigendeckung', (kCons > 0 ? fmt(100 * kSelf / kCons, 0) : '–') + ' %']); }
+        parts.forEach(function (p, j) { if (j) { sum.appendChild(document.createTextNode(' · ')); } sum.appendChild(document.createTextNode(p[0] + ' ')); var b = document.createElement('b'); b.textContent = p[1]; sum.appendChild(b); });
+
+        var empty = document.getElementById('epk-empty');
+        var hasRows = d.schedules.length || d.prices.length || d.purchase.length;
+        empty.textContent = (!L.length && !hasRows) ? 'Keine Prognose-Instanz gefunden und keine Fahrpläne vorhanden.' : '';
+
+        drawChart(day, L, vis, gen, cons);
+        drawRows(day);
+    }
+
+    function drawChart(day, L, vis, gen, cons) {
+        var d = EPK.data, svg = document.getElementById('epk-chart');
+        while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+        var W = Math.max(320, svg.parentNode.clientWidth || 600), H = L.length ? (d.opts.height || 260) : 0;
+        svg.setAttribute('height', H); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+        var x0 = 44, x1 = W - 8, y0 = 6, y1 = H - 18, pw = x1 - x0;
+        EPK.geo = { x0: x0, pw: pw, W: W, day: day };
+        if (!L.length) { return; }
+        // Wertebereich (inkl. Band)
+        var s = day.series, upMax = 0, dnMax = 0, g90 = zero(), c90 = zero(), g10 = zero(), c10 = zero();
+        ['pv', 'wind', 'bhkw'].forEach(function (k) { if (s[k] && !EPK.hidden[k]) { g90 = sumArr(g90, s[k].p90); g10 = sumArr(g10, s[k].p10); } });
+        if (s.cons) { c90 = s.cons.p90; c10 = s.cons.p10; }
+        var genVis = zero(), consVis = zero();
+        vis.forEach(function (l) { var t = l.dir > 0 ? genVis : consVis; for (var i = 0; i < 96; i++) { t[i] += l.vals[i] || 0; } });
+        for (var i = 0; i < 96; i++) {
+            upMax = Math.max(upMax, genVis[i], d.opts.band ? g90[i] : 0);
+            dnMax = Math.max(dnMax, consVis[i], d.opts.band && s.cons && !EPK.hidden.base ? c90[i] : 0);
+        }
+        var step = niceStep((upMax + dnMax) / 1000 / 5) * 1000;
+        upMax = Math.max(step, Math.ceil(upMax / step) * step); dnMax = Math.ceil(dnMax / step) * step;
+        var Y = function (w) { return y0 + (upMax - w) / (upMax + dnMax) * (y1 - y0); };
+        var X = function (i) { return x0 + (i + 0.5) / 96 * pw; };
+        // Gitter
+        for (var w = -dnMax; w <= upMax + 1; w += step) {
+            el('line', { x1: x0, x2: x1, y1: Y(w), y2: Y(w), stroke: 'var(--epk-grid)', 'stroke-width': w === 0 ? 1.5 : 1 }, svg);
+            var t = el('text', { x: x0 - 4, y: Y(w) + 3, 'text-anchor': 'end' }, svg); t.textContent = fmt(Math.abs(w) / 1000, step < 1000 ? 1 : 0);
+        }
+        var u = el('text', { x: 2, y: y0 + 8 }, svg); u.textContent = 'kW';
+        for (var h = 0; h <= 24; h += 3) {
+            var xx = x0 + h / 24 * pw; el('line', { x1: xx, x2: xx, y1: y0, y2: y1, stroke: 'var(--epk-grid)' }, svg);
+            var tl = el('text', { x: xx, y: H - 4, 'text-anchor': 'middle' }, svg); tl.textContent = ('0' + h).slice(-2) + ':00';
+        }
+        // Bänder (P10–P90)
+        if (d.opts.band) {
+            if (s.pv || s.wind || s.bhkw) { band(svg, X, Y, g10, g90, 1, d.colors.bandGen); }
+            if (s.cons && !EPK.hidden.base) { band(svg, X, Y, c10, c90, -1, d.colors.bandCons); }
+        }
+        // gestapelte Flächen
+        var cumUp = zero(), cumDn = zero();
+        vis.forEach(function (l) {
+            var cum = l.dir > 0 ? cumUp : cumDn, lo = cum.slice(), hi = [];
+            for (var i = 0; i < 96; i++) { hi.push(cum[i] + (l.vals[i] || 0)); cum[i] = hi[i]; }
+            var pts = [];
+            for (var i = 0; i < 96; i++) { pts.push(X(i) + ',' + Y(l.dir * hi[i])); }
+            for (var i = 95; i >= 0; i--) { pts.push(X(i) + ',' + Y(l.dir * lo[i])); }
+            el('polygon', { points: pts.join(' '), fill: l.color, 'fill-opacity': 0.78, stroke: l.color, 'stroke-width': 0.8 }, svg);
+        });
+        // Saldo
+        if (d.opts.net && !EPK.hidden.net) {
+            var p = [];
+            for (var i = 0; i < 96; i++) { p.push(X(i) + ',' + Y(genVis[i] - consVis[i])); }
+            el('polyline', { points: p.join(' '), fill: 'none', stroke: d.colors.net, 'stroke-width': 2 }, svg);
+        }
+        // Jetzt
+        if (EPK.day === 0) {
+            var f = (d.now - day.start) / (day.end - day.start);
+            if (f >= 0 && f <= 1) {
+                el('line', { x1: x0 + f * pw, x2: x0 + f * pw, y1: y0, y2: y1, stroke: 'currentColor', 'stroke-dasharray': '3,3', 'stroke-opacity': 0.6 }, svg);
+            }
+        }
+        EPK.geo.vals = { gen: genVis, cons: consVis };
+        bindTip(svg);
+    }
+
+    function band(svg, X, Y, lo, hi, dir, color) {
+        var pts = [];
+        for (var i = 0; i < 96; i++) { pts.push(X(i) + ',' + Y(dir * hi[i])); }
+        for (var i = 95; i >= 0; i--) { pts.push(X(i) + ',' + Y(dir * lo[i])); }
+        el('polygon', { points: pts.join(' '), fill: color, 'fill-opacity': 0.18, stroke: color, 'stroke-opacity': 0.5, 'stroke-dasharray': '4,3' }, svg);
+    }
+
+    function niceStep(raw) {
+        if (raw <= 0) { return 1; }
+        var p = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / p;
+        return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p;
+    }
+
+    /** Zeilen unter dem Diagramm: Preise, Zukauf, Fahrpläne. */
+    function drawRows(day) {
+        var d = EPK.data, svg = document.getElementById('epk-rows'), g = EPK.geo;
+        while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+        var rows = [];
+        var inDay = function (list) { return list.filter(function (e) { return e.to > day.start && e.from < day.end; }); };
+        var prices = inDay(d.prices);
+        if (prices.length) { rows.push({ name: 'Strompreis (' + d.priceUnit + ')', kind: 'price', entries: prices }); }
+        var pur = inDay(d.purchase);
+        if (d.purchase.length || prices.length) { rows.push({ name: 'Zukauf (Fahrplan)', kind: 'entries', entries: pur, hint: 'kein Zukauf geplant' }); }
+        d.schedules.forEach(function (s) { rows.push({ name: s.name, kind: 'entries', entries: inDay(s.entries), hint: 'keine Einträge an diesem Tag' }); });
+        var RH = 28, H = rows.length ? rows.length * RH + 4 : 0;
+        svg.setAttribute('height', H); svg.setAttribute('viewBox', '0 0 ' + g.W + ' ' + H);
+        EPK.geo.rows = rows; EPK.geo.RH = RH;
+        var xt = function (t) { return g.x0 + Math.max(0, Math.min(1, (t - day.start) / (day.end - day.start))) * g.pw; };
+        var pmin = Infinity, pmax = -Infinity;
+        prices.forEach(function (p) { pmin = Math.min(pmin, p.price); pmax = Math.max(pmax, p.price); });
+        rows.forEach(function (r, k) {
+            var y = k * RH + 12;
+            var lab = el('text', { x: g.x0, y: y - 2 }, svg); lab.textContent = r.name;
+            el('rect', { x: g.x0, y: y, width: g.pw, height: 13, fill: 'var(--epk-grid)', 'fill-opacity': 0.5, rx: 2 }, svg);
+            if (r.kind === 'price') {
+                r.entries.forEach(function (p) {
+                    var f = pmax > pmin ? (p.price - pmin) / (pmax - pmin) : 0.5, a = xt(p.from), b = xt(p.to);
+                    var col = mix(d.colors.cheap, d.colors.expensive, f);
+                    el('rect', { x: a, y: y, width: Math.max(1, b - a - 0.5), height: 13, fill: col[0] }, svg);
+                    if (d.cheap.indexOf(p.from) >= 0) {
+                        el('rect', { x: a + 0.75, y: y + 0.75, width: Math.max(1, b - a - 2), height: 11.5, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.5 }, svg);
+                    }
+                    if (b - a > 26) { var tx = el('text', { x: (a + b) / 2, y: y + 10, 'text-anchor': 'middle', style: 'fill:' + (col[1] ? '#1f2328' : '#fff') + ';font-size:9px' }, svg); tx.textContent = fmt(p.price, 0); }
+                });
+            } else {
+                if (!r.entries.length) { var hn = el('text', { x: g.x0 + 4, y: y + 10 }, svg); hn.textContent = r.hint; }
+                r.entries.forEach(function (e) {
+                    var a = xt(e.from), b = xt(e.to), c = d.colors[e.type] || d.colors.normal;
+                    el('rect', { x: a, y: y, width: Math.max(1.5, b - a), height: 13, fill: c, rx: 2 }, svg);
+                    var txt = e.label || TYPES[e.type] || '';
+                    if (txt && b - a > txt.length * 5.6 + 6) { var tt = el('text', { x: a + 3, y: y + 10, style: 'fill:#fff;font-size:9px' }, svg); tt.textContent = txt; }
+                });
+            }
+        });
+        if (rows.length) {
+            var f = (d.now - day.start) / (day.end - day.start);
+            if (EPK.day === 0 && f >= 0 && f <= 1) { el('line', { x1: g.x0 + f * g.pw, x2: g.x0 + f * g.pw, y1: 0, y2: H, stroke: 'currentColor', 'stroke-dasharray': '3,3', 'stroke-opacity': 0.6 }, svg); }
+        }
+        bindTip(svg);
+    }
+
+    function bindTip(svg) {
+        var tip = document.getElementById('epk-tip');
+        var move = function (ev) {
+            var g = EPK.geo, d = EPK.data; if (!g || !d) { return; }
+            var box = svg.getBoundingClientRect(), pt = ev.touches ? ev.touches[0] : ev;
+            var mx = (pt.clientX - box.left) / box.width * g.W;
+            if (mx < g.x0 || mx > g.x0 + g.pw) { tip.style.display = 'none'; return; }
+            var f = (mx - g.x0) / g.pw, slot = Math.min(95, Math.floor(f * 96)), day = g.day, t = day.start + f * (day.end - day.start);
+            var lines = [], L = layers(day);
+            var line = function (color, text) { lines.push((color ? '<i style="background:' + color + '"></i>' : '') + text); };
+            line('', '<b>' + hhmm(day.start + slot * 900) + '–' + hhmm(day.start + (slot + 1) * 900) + '</b>');
+            L.forEach(function (l) { if (!EPK.hidden[l.key]) { line(l.color, l.name + ': ' + fmt((l.vals[slot] || 0) / 1000, 2) + ' kW'); } });
+            if (g.vals && L.length) { line(d.colors.net, 'Saldo: ' + fmt((g.vals.gen[slot] - g.vals.cons[slot]) / 1000, 2) + ' kW'); }
+            d.prices.forEach(function (p) { if (t >= p.from && t < p.to) { line('', 'Preis: ' + fmt(p.price, 2) + ' ' + d.priceUnit + (d.cheap.indexOf(p.from) >= 0 ? ' (günstig)' : '')); } });
+            var act = function (name, e) { line(d.colors[e.type], esc(name) + ': ' + TYPES[e.type] + (e.label ? ' – ' + esc(e.label) : '') + (e.kw !== null && e.kw !== undefined ? ' (' + fmt(e.kw, 1) + ' kW)' : '')); };
+            d.purchase.forEach(function (e) { if (t >= e.from && t < e.to) { act('Zukauf', e); } });
+            d.schedules.forEach(function (s) { s.entries.forEach(function (e) { if (t >= e.from && t < e.to) { act(s.name, e); } }); });
+            tip.innerHTML = lines.join('<br>');
+            tip.style.display = 'block';
+            var plot = document.getElementById('epk-plot').getBoundingClientRect();
+            var left = pt.clientX - plot.left + 12, top = pt.clientY - plot.top + 12;
+            if (left + tip.offsetWidth > plot.width) { left = pt.clientX - plot.left - tip.offsetWidth - 12; }
+            tip.style.left = Math.max(0, left) + 'px'; tip.style.top = top + 'px';
+        };
+        svg.onmousemove = move; svg.ontouchstart = move; svg.ontouchmove = move;
+        svg.onmouseleave = function () { tip.style.display = 'none'; };
+    }
+
+    function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+    window.addEventListener('resize', function () { if (EPK.data) { epkRender(); } });
+    var EPK_INIT = /*EPK_DATA*/null;
+    if (EPK_INIT) { handleMessage(EPK_INIT); }
+</script>

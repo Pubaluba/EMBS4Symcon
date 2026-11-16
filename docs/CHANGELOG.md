@@ -1,5 +1,10 @@
 # Änderungen
 
+## 1.2 (Build 2)
+
+- Neu: Energiekachel (`EPK`) – Prognosen farbig in der Kachel-Visualisierung, Strompreise mit Markierung der günstigsten
+  Abschnitte, Zukaufplan und Fahrpläne (Anforderung, Normalbetrieb, Sperre); Daten per String-Variable oder Funktion.
+
 ## 1.1 (Build 1)
 
 **Bitte vor dem Update lesen:**
