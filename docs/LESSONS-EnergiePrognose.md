@@ -36,3 +36,18 @@
 - **Symptom:** (vorbeugend) Die Belegung von `$Data` bei `VM_UPDATE` ist in der Doku nicht beschrieben.
 - **Lösung:** Aktuellen Variablenwert lesen und mit dem zuletzt gemerkten Zustand vergleichen.
 - **Absicherung:** Test `testPlugInStartsImmediateCharging` (ruft `MessageSink` mit leerem `$Data`).
+
+### E6 – Begrenzen auf die Nennleistung darf keine Energie verschlucken
+- **Symptom:** Test `EPForecastLibTest::testCapRedistributeKeepsEnergy` schlug fehl: Beim Begrenzen eines BHKW-Profils auf
+  die Nennleistung ging der Teil verloren, der nicht in die bisherigen Laufzeiten passte.
+- **Ursache:** bestätigt – der Überschuss wurde nur auf Viertelstunden mit Erzeugung verteilt.
+- **Lösung:** Zweite Stufe verteilt den Rest auf die übrigen Viertelstunden (Anlage läuft länger); nur mehr als 24 h
+  Volllast fällt weg.
+- **Absicherung:** derselbe Test mit drei Fällen.
+
+### E7 – Kalibrierung gegen Wetter derselben Tage, nicht gegen alte Prognosen
+- **Entscheidung:** PV und Wind vergleichen die Messung mit dem Modell aus den Wetterdaten der Vortage (Open-Meteo
+  `past_days`) statt mit gespeicherten Prognosen. Vorteil: sofort nutzbar, ohne wochenlang Prognosen zu sammeln, und
+  unabhängig von Prognosefehlern des Wetters. Nachteil: Der Faktor gleicht Anlage und Modell ab, nicht die
+  Vorhersagegüte für morgen.
+- **Absicherung:** Ende-zu-Ende-Tests (Messung = 90 % bzw. 80 % des Modells → gelernter Faktor 0,90 bzw. 0,80).

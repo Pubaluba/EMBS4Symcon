@@ -1,42 +1,52 @@
-# BHKW-Prognose (wärmegeführt)
+# EnergiePrognose
 
-Elektrische Erzeugung eines **wärmegeführten** BHKW für **heute, morgen und übermorgen** mit Unsicherheitsband.
+Symcon-Bibliothek für Energieprognosen als Grundlage für ein Energiemanagement, für Wohnhäuser und Gewerbe.
+Eigene Entwicklung, ohne Code aus anderen Prognose-Modulen.
 
-## Funktionsweise
+| Modul | Präfix | Inhalt |
+|---|---|---|
+| [Verbrauchsprognose](Verbrauchsprognose/README.md) | `EPL` | Grundlast, Wärmepumpe/Klima, Wallboxen, kWh-/Zählerstand-Eingänge |
+| [Solarprognose](Solarprognose/README.md) | `EPV` | PV je Generator, Temperaturverlust, Wechselrichtergrenze, Kalibrierung aus der Messung |
+| [Windprognose](Windprognose/README.md) | `EPW` | Kleinwind: Nabenhöhe, Rotorfläche oder Kennlinie, Luftdichte, Böigkeit, Kalibrierung |
+| [BHKWPrognose](BHKWPrognose/README.md) | `EPB` | wärmegeführtes BHKW über die Außentemperatur, Stillstandstage |
 
-Ein wärmegeführtes BHKW läuft, wenn Wärme gebraucht wird; die Stromerzeugung folgt also der Außentemperatur.
+Alle Module liefern dasselbe Format (`GetForecast`: `p10`/`p50`/`p90`/`mean` in W je Slot, `kwh`, Vertrag 1.0;
+`GetEnergyWindow`: Energie im Zeitfenster). Ein EMS kann so Verbrauch und Erzeugung direkt gegeneinanderrechnen:
 
-- **Tagesenergie** = a + b · Heizgrad, gelernt aus der gemessenen Erzeugung und der archivierten Außentemperatur
-  (Heizgrad = Heizgrenze − Tagesmitteltemperatur). `a` ist der Sockel für Warmwasser bzw. Prozesswärme im Sommer.
-  Begrenzt auf Nennleistung × 24 h.
-- **Tagesverlauf** aus den Tagen mit ähnlichster Temperatur und gleichem Tagtyp (Werktag, Samstag, Sonn-/Feiertag je
-  Bundesland). Keine Viertelstunde über der Nennleistung; passt die Energie nicht in die bisherigen Laufzeiten, verteilt
-  das Modul den Rest auf weitere Viertelstunden (die Anlage läuft dann länger).
-- **Band** aus der Streuung Ist/Modell über die Lerntage.
-- **Stillstandstage** (Wartung, Betriebsruhe): vergangene werden beim Lernen übersprungen, geplante ergeben 0.
-- Temperaturvorhersage aus Open-Meteo, eigenen Variablen oder dem Mittel der Vorjahre.
+```php
+$von = time(); $bis = strtotime('tomorrow 07:00');
+$bedarf = EPL_GetEnergyWindow(11111, $von, $bis)['kwh'];
+$erzeugung = EPV_GetEnergyWindow(22222, $von, $bis)['kwh'] + EPW_GetEnergyWindow(33333, $von, $bis)['kwh']
+           + EPB_GetEnergyWindow(44444, $von, $bis)['kwh'];
+```
 
-## Voraussetzungen
+Voraussetzung: Symcon ab 8.1. Einbinden über das **Module Control** mit der URL des Repositorys.
+**Erst auf einer Test-Instanz ausprobieren.**
 
-- Archivierte elektrische Erzeugung (Leistung, Energie je Intervall oder Zählerstand) und archivierte Außentemperatur.
-- Mindestens 14 Tage mit beidem; besser eine ganze Heizperiode.
+## Entwicklung
 
-## Ausgaben
+Das Repository beruht auf dem eigenen Starter-Repository (Regelwerk aus der ArpScan-Entwicklung).
 
-Variablen „BHKW-Prognose heute/morgen/übermorgen (JSON)“ und „… (kWh)“. JSON wie bei allen Modulen, zusätzlich
-`temperature`, `temperatureSource`, `ratedKw`, `runHours` (Volllaststunden), `closed`, `modelDays`, `coef` ([a, b]).
-
-| Befehl | Rückgabe |
+| Pfad | Zweck |
 |---|---|
-| `EPB_Rebuild($id)` | Neuberechnung |
-| `EPB_GetForecast($id, $offset)` | Prognose als Array |
-| `EPB_GetEnergyWindow($id, $von, $bis)` | Energie im Zeitfenster |
-| `EPB_ClearCache($id)` | Tagesspeicher der Messung löschen |
+| `Verbrauchsprognose/`, `Solarprognose/`, `Windprognose/`, `BHKWPrognose/` | Module (`module.php`, `form.json`, `module.json`, README) |
+| `libs/` | Logik ohne Symcon-Abhängigkeit: `EPSeries` (Archivwerte → Viertelstundenprofil), `EPDayCache` (Tagesspeicher), `EPCalendar` (Feiertage, Tageslänge), `EPMath` (Quantile, Regression), `EPWallbox` (Ladeplanung), `EPSun` (Sonnenstand), `EPPV` (Modulebene, Temperatur), `EPWind` (Nabenhöhe, Dichte, Kennlinie), `EPOpenMeteo`, `EPDegreeDay` (Gradtag-Regression), `EPForecast` (Ausgabeformat, Kalibrierung). Traits: `EPHelper` (Laufzeitverzeichnis, Download, Fehler), `EPModuleCommon` (gemeinsame Modulteile der Erzeugungsprognosen) |
+| `tests/php/` | PHPUnit-Tests der `libs/` und Ende-zu-Ende-Test des Moduls mit nachgebildetem Symcon/Archiv (`tests/php/stubs/`) |
+| `tests/lint/` | Tests des Linters |
+| `.dev/symcon_lint.py` | Statische Prüfungen |
+| `.dev/run_php_tests.php` | PHP-Tests ohne PHPUnit/Composer ausführen |
+| `.dev/scaffold.py` | Neues Modul aus `.dev/template/MeinModul` |
+| `.dev/build_zip.py` | Release-ZIP nach sauberem Lint |
+| `.dev/diagnose.php` | Diagnoseskript für das Zielsystem |
+| `docs/` | Regelwerk (`RULES.md`), Fehlerchroniken, Vorlage für neue Erkenntnisse |
+| `CLAUDE.md` | Anweisungen für Claude Code |
 
-## Grenzen
+```bash
+python3 .dev/symcon_lint.py --strict
+python3 -m unittest discover -s tests/lint
+php -d memory_limit=32M .dev/run_php_tests.php      # oder: composer install && vendor/bin/phpunit
+python3 .dev/build_zip.py                            # Release-ZIP in dist/
+```
 
-- Nur für wärmegeführten Betrieb. Strom- oder fahrplangeführte BHKW (Betrieb nach Strompreis oder EMS) folgen nicht der
-  Temperatur.
-- Ein Wärmespeicher verschiebt Laufzeiten innerhalb des Tages; die Tagesenergie bleibt davon unberührt, der Verlauf
-  wird aus den Vergleichstagen übernommen.
-- Takten (häufiges An/Aus) wird nur als Mittelwert je Viertelstunde abgebildet.
+Neue Module: `python3 .dev/scaffold.py module <Name> <PRÄFIX>`. Klassennamen in `libs/` tragen das Kürzel `EP`, damit
+sie nicht mit gleichnamigen Klassen anderer Bibliotheken zusammenstoßen.
