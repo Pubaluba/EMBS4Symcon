@@ -1,0 +1,91 @@
+{
+    "elements": [
+        {
+            "type": "Label",
+            "caption": "Passiver Modbus-Sniffer: Dieses Modul sendet niemals Daten an die Schnittstelle. Anfragen untergeordneter Instanzen werden blockiert und – falls aktiviert – aus dem mitgelesenen Cache beantwortet."
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Schnittstelle",
+            "expanded": true,
+            "items": [
+                {
+                    "type": "Select",
+                    "name": "InterfaceType",
+                    "caption": "Schnittstelle",
+                    "options": [
+                        { "caption": "Serielle Schnittstelle (lokal)", "value": 0 },
+                        { "caption": "Server Socket (TCP)", "value": 1 }
+                    ]
+                },
+                {
+                    "type": "Select",
+                    "name": "Protocol",
+                    "caption": "Protokoll",
+                    "options": [
+                        { "caption": "Modbus RTU (seriell / RTU over TCP)", "value": 0 },
+                        { "caption": "Modbus TCP (MBAP, nur Server Socket)", "value": 1 }
+                    ]
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "FrameGap",
+                    "caption": "Ruhepause = Framegrenze",
+                    "suffix": "ms (0 = aus)",
+                    "minimum": 0
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Untergeordnete Instanzen",
+            "items": [
+                {
+                    "type": "CheckBox",
+                    "name": "AnswerFromCache",
+                    "caption": "Leseanfragen (FC1–4) aus dem Cache beantworten"
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "DeviceID",
+                    "caption": "Geräte-ID (Slave), für die geantwortet wird",
+                    "minimum": 0,
+                    "maximum": 247
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "MaxAge",
+                    "caption": "Maximales Alter der Cache-Werte",
+                    "suffix": "s (0 = unbegrenzt)",
+                    "minimum": 0
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "ForwardFrames",
+                    "caption": "Mitgelesene Frames an eigene Kind-Module weiterreichen"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "LogBlocked",
+                    "caption": "Blockierte Anfragen zusätzlich ins Meldungsprotokoll schreiben"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "type": "Button",
+            "caption": "Statistik anzeigen",
+            "onClick": "echo json_encode(MBSNIFF_GetStatistics($id), JSON_PRETTY_PRINT);"
+        },
+        {
+            "type": "Button",
+            "caption": "Cache leeren",
+            "onClick": "MBSNIFF_ClearCache($id); echo 'Cache geleert';"
+        }
+    ],
+    "status": [
+        { "code": 102, "icon": "active", "caption": "Sniffer aktiv" },
+        { "code": 201, "icon": "error", "caption": "Modbus TCP ist nur mit Server Socket möglich" }
+    ]
+}

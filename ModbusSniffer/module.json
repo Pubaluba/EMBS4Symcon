@@ -1,0 +1,22 @@
+{
+    "id": "{BD5EA6A4-D008-B78C-5623-D088B4373C2F}",
+    "name": "ModbusSniffer",
+    "type": 2,
+    "vendor": "EMBS",
+    "aliases": ["Modbus Sniffer", "Modbus Mitleser"],
+    "parentRequirements": [
+        "{79827379-F36E-4ADA-8A95-5F8D1DC92FA9}",
+        "{C8792760-65CF-4C53-B5C7-A30FCC84FEFE}"
+    ],
+    "childRequirements": [
+        "{449015FB-6717-4BB6-9F95-F69945CE1272}",
+        "{E07F7DDA-41A4-2699-6375-0BD4C00B6695}"
+    ],
+    "implemented": [
+        "{018EF6B5-AB94-40C6-AA53-46943E824ACF}",
+        "{7A1272A4-C6A7-4E25-9A62-AD07AD8BE2C7}",
+        "{E310B701-4AE7-458E-B618-EC13A1A6F6A8}"
+    ],
+    "prefix": "MBSNIFF",
+    "url": ""
+}
